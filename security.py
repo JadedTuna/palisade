@@ -20,14 +20,6 @@ def _assign_security_labels(node: AstNode):
     case _:
       report_error('unexpected node while assigning security labels', node.span)
 
-def _security_debug(node: AstNode):
-  match node:
-    case SDebug(span, id):
-      report_debug(id.name, id.span, None, id)
-      return node
-    case _:
-      return node
-
 def _check_explicit_flows(node: AstNode):
   match node:
     case EInt() | EBool() | EId() | EUnOp() | EBinOp():
@@ -49,5 +41,4 @@ def _check_explicit_flows(node: AstNode):
       report_error('unexpected node while checking explicit flows', node.span)
 
 assign_security_labels = make_traverse(_assign_security_labels)
-security_debug = make_traverse(_security_debug)
 check_explicit_flows = make_traverse(_check_explicit_flows)

@@ -6,6 +6,7 @@ from .ast import Span
 
 def color(s, c): return f'\033[1;{c}m{s}\033[0m'
 def red(s): return color(s, 31)
+def blue(s): return color(s, 34)
 def purple(s): return color(s, 35)
 def cyan(s): return color(s, 36)
 def yellow(s): return color(s, 93)
@@ -16,17 +17,30 @@ def report(level: str, msg: str, span: Span, colorfn, preamble_lines: int = 2,
   lstart = max(span.lnum - preamble_lines, 1)
   lend = span.lnum
 
-  print('\n' + colorfn(f'{level}: ') + msg)
+  # TODO: strip whitespace from the left of all lines, consistently
+  # print preamble lines
+  print(colorfn(f'{level}: ') + msg)
   for i in range(lstart, lend):
-    print(f'{i:4} | ' + lines[i])
+    print(f'{i + 1:4} | ' + lines[i].replace('\t', '    '))
 
   cstart = span.cstart
   cend = span.cend
 
+  # print marked line
+  # NOTE: doing .replace on line here would mess up offsets
   line = lines[lend]
-  print(f'{lend:4} | ' + line[:cstart] + colorfn(line[cstart:cend]) + line[cend:])
+  before, highlighted, after = line[:cstart], line[cstart:cend], line[cend:]
+  print(f'{lend + 1:4} | '
+    + before.replace('\t', '    ')
+    + colorfn(highlighted).replace('\t', '    ')
+    + after.replace('\t', '    '))
 
-  print('       ' + colorfn('~' * cstart) + colorfn('^' * (cend - cstart)))
+  # print underline
+  extra_spaces = len(before.replace('\t', '    ')) - len(before)
+  print(' ' * 7 # padding for line numbers
+    + colorfn('~' * (cstart + extra_spaces))
+    + colorfn('^' * (cend - cstart)))
+
   if epilogue is not None:
     print(epilogue)
   if epilogue_pp is not None:
@@ -40,6 +54,7 @@ def report_security_error(msg: str, span: Span) -> NoReturn:
   report('security error', msg, span, purple)
   exit(1)
 
-def report_debug(msg: str, span: Span, epilogue: str|None = None, epilogue_pp = None):
+def report_debug(msg: str, span: Span,
+                 epilogue: str|None = None, epilogue_pp = None):
   report('debug', msg, span, cyan,
     epilogue = epilogue, epilogue_pp = epilogue_pp)

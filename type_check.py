@@ -38,7 +38,7 @@ def type_ebinop(op: str, span: Span, lhs: Expr, rhs: Expr) -> Type:
     case _:
       report_error('type mismatch', span)
 
-def _type_check(node: AstNode):
+def _type_annotate(node: AstNode):
   match node:
     case EId(span, TUnresolved(), sec, name, sym):
       return EId(span, sym.type, sec, name, sym)
@@ -46,6 +46,22 @@ def _type_check(node: AstNode):
       return EInt(span, TInt(), sec, v)
     case EBool(span, TUnresolved(), sec, v):
       return EBool(span, TBool(), sec, v)
+    case EUnOp() | EBinOp():
+      return node
+
+    case SScope() | SAssign() | SIf() | SWhile() | SDebug() | File():
+      return node
+    case SVarDef(_, _, lhs, rhs):
+      # type inference
+      lhs.sym.type = rhs.type
+      # TODO: HACK
+      lhs.type = rhs.type
+      return node
+
+def _type_check(node: AstNode):
+  match node:
+    case EId() | EInt() | EBool():
+      return node
     case EUnOp(span, TUnresolved(), sec, op, expr):
       type = type_eunop(op, span, expr)
       return EUnOp(span, type, sec, op, expr)
@@ -53,13 +69,7 @@ def _type_check(node: AstNode):
       type = type_ebinop(op, span, lhs, rhs)
       return EBinOp(span, type, sec, op, lhs, rhs)
 
-    case SScope() | SDebug() | File():
-      return node
-    case SVarDef(_, _, lhs, rhs):
-      # type inference
-      lhs.sym.type = rhs.type
-      # TODO: HACK
-      lhs.type = rhs.type
+    case SScope() | SVarDef() | SDebug() | File():
       return node
     case SAssign(span, lhs, rhs):
       if lhs.type != rhs.type:
@@ -79,4 +89,5 @@ def _type_check(node: AstNode):
     case _:
       report_error('unexpected node in type check', node.span)
 
+type_annotate = make_traverse(_type_annotate)
 type_check = make_traverse(_type_check)

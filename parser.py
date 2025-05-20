@@ -228,10 +228,10 @@ class Parser:
   def parse_debug(self) -> SDebug:
     # debug identifier ;
     tok = self.expect('debug')
-    id = self.parse_identifier()
+    expr = self.parse_expr()
     self.expect(';')
 
-    return SDebug(tok.span, id)
+    return SDebug(tok.span, expr)
 
   def parse_vardef(self) -> SVarDef:
     # high|low identifier = expr ;
