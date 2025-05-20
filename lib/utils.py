@@ -32,11 +32,11 @@ def report(level: str, msg: str, span: Span, colorfn, preamble_lines: int = 2,
   if epilogue_pp is not None:
     pprint(epilogue_pp)
 
-def report_error(msg: str, span: Span):
+def report_error(msg: str, span: Span) -> NoReturn:
   report('error', msg, span, red)
   exit(1)
 
-def report_security_error(msg: str, span: Span):
+def report_security_error(msg: str, span: Span) -> NoReturn:
   report('security error', msg, span, purple)
   exit(1)
 
