@@ -6,7 +6,7 @@ def make_traverse_data(postcb, precb):
   return partial(traverse_data, postcb, precb)
 
 def make_traverse(postcb, precb = lambda x: x):
-  return partial(traverse, precb, postcb)
+  return partial(traverse, postcb, precb)
 
 def traverse_data(postcb, precb, data, node: AstNode):
   nnode, ndata = precb(node, data)

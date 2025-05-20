@@ -3,8 +3,8 @@ from pprint import pprint
 from tokenizer import Tokenizer
 from parser import Parser
 from symbolize import symbolize
-# from type_check import type_check
-# from security import check_explicit_flows
+from type_check import type_check
+from security import check_explicit_flows
 
 from traverse import make_traverse
 
@@ -66,13 +66,11 @@ x = 27;
 """
 
 SRC = """
-high x = false;
-low y = false;
-y = false;
-{
-  {
+low z = true;
 
-  }
+if (z) {
+  z = false;
+  high x = z;
 }
 
 """
@@ -80,35 +78,11 @@ y = false;
 tokenizer = Tokenizer(SRC)
 tokenizer.tokenize()
 
-# print(tokenizer.lnum)
-# pprint(tokenizer.tokens)
-
 parser = Parser(tokenizer.tokens)
 ast = parser.parse()
-# pprint(ast)
-
-# TODO: add symbolize
-# TODO: run check_explicit_flows before type_check
-# to remove side channel (is high x int or bool?)
 
 ast = symbolize(ast.symtab, ast)
-
-# ast = type_check(ast, ast.symtab)
-
-# ast = check_explicit_flows(ast)
+ast = check_explicit_flows(ast)
+ast = type_check(ast)
 
 # pprint(ast)
-
-from lib.ast import *
-def _print_symtabs(node: AstNode):
-  match node:
-    case EId(_, _, secure, name):
-      print(name)
-    case File(_, _, symtab) | SScope(_, _, symtab):
-      pprint(symtab)
-  return node
-
-print_symtabs = make_traverse(_print_symtabs, lambda x: x)
-print_symtabs(ast)
-
-pprint(ast)

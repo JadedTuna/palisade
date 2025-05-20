@@ -1,10 +1,8 @@
 from lib.ast import *
 from lib.utils import report_error
-from traverse import traverse
+from traverse import make_traverse
 
 # TODO: if before type-check, maybe have TUnresolved()
-
-check_explicit_flows = lambda node: traverse(node, _check_explicit_flows)
 
 def _check_explicit_flows(node: AstNode):
   match node:
@@ -18,7 +16,7 @@ def _check_explicit_flows(node: AstNode):
       sec = HIGH if lhs.secure or rhs.secure else LOW
       return EBinOp(span, type, sec, op, lhs, rhs)
 
-    case SScope() | SIf() | SWhile():
+    case SScope() | SIf() | SWhile() | File():
       return node
     case SVarDef(span, _, lhs, rhs):
       if lhs.secure == LOW and rhs.secure == HIGH:
@@ -33,3 +31,5 @@ def _check_explicit_flows(node: AstNode):
 
     case _:
       report_error('unexpected node while checking explicit flows', node.span)
+
+check_explicit_flows = make_traverse(_check_explicit_flows)
