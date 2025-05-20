@@ -11,7 +11,7 @@ def _symbolize_pre(node: AstNode, symtab: SymTab):
       sym = symtab.lookup(lhs.name)
       if sym is not None:
         report_error(f'redefinition of {lhs.name}', span)
-      symtab.register(lhs.name, Symbol(lhs.name, TUnresolved(), secure))
+      symtab.register(lhs.name, Symbol(lhs.name, TUnresolved(), secure, span))
       return (node, symtab)
     case _:
       return (node, symtab)

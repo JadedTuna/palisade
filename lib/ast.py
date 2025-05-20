@@ -27,8 +27,9 @@ class Symbol:
   name: str
   type: Type
   secure: bool
+  origin: Span = field(repr=False)
 
-SYMBOL_UNRESOLVED = Symbol('UNRESOLVED', TUnresolved(), HIGH)
+SYMBOL_UNRESOLVED = Symbol('UNRESOLVED', TUnresolved(), HIGH, FAKE_SPAN)
 
 @dataclass
 class SymTab:
@@ -117,7 +118,7 @@ class SWhile(Stmt):
 
 @dataclass
 class SDebug(Stmt):
-  id: EId
+  expr: Expr
 
 @dataclass
 class File(AstNode):
