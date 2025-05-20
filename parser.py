@@ -244,3 +244,4 @@ class Parser:
 
     return SVarDef(tok.span, secure, lhs, rhs)
 
+
