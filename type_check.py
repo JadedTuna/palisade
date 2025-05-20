@@ -53,7 +53,7 @@ def _type_check(node: AstNode):
       type = type_ebinop(op, span, lhs, rhs)
       return EBinOp(span, type, sec, op, lhs, rhs)
 
-    case SScope() | File():
+    case SScope() | SDebug() | File():
       return node
     case SVarDef(_, _, lhs, rhs):
       # type inference

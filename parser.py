@@ -168,6 +168,8 @@ class Parser:
       return self.parse_while()
     elif self.maybe('high', 'low'):
       return self.parse_vardef()
+    elif self.maybe('debug'):
+      return self.parse_debug()
     elif self.maybe('identifier'):
       # TODO: function calls
       # TODO: high/low
@@ -222,6 +224,14 @@ class Parser:
     body = self.parse_stmt()
 
     return SWhile(tok.span, clause, body)
+
+  def parse_debug(self) -> SDebug:
+    # debug identifier ;
+    tok = self.expect('debug')
+    id = self.parse_identifier()
+    self.expect(';')
+
+    return SDebug(tok.span, id)
 
   def parse_vardef(self) -> SVarDef:
     # high|low identifier = expr ;

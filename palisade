@@ -4,7 +4,7 @@ from tokenizer import Tokenizer
 from parser import Parser
 from symbolize import symbolize
 from type_check import type_check
-from security import check_explicit_flows
+from security import *
 
 from traverse import make_traverse
 
@@ -66,11 +66,11 @@ x = 27;
 """
 
 SRC = """
-low z = true;
-
+high z = true;
 if (z) {
   z = false;
-  high x = z;
+  debug z;
+  low x = z;
 }
 
 """
@@ -82,7 +82,10 @@ parser = Parser(tokenizer.tokens)
 ast = parser.parse()
 
 ast = symbolize(ast.symtab, ast)
+ast = assign_security_labels(ast)
+security_debug(ast)
 ast = check_explicit_flows(ast)
 ast = type_check(ast)
+
 
 # pprint(ast)

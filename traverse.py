@@ -49,6 +49,9 @@ def _traverse(f, node: AstNode):
       nclause = f(clause)
       nbody = f(body)
       return SWhile(span, nclause, nbody)
+    case SDebug(span, id):
+      nid = f(id)
+      return SDebug(span, nid)
 
     case File(span, stmts, symtab):
       nstmts = [f(s) for s in stmts]

@@ -107,11 +107,17 @@ class SIf(Stmt):
   clause: Expr
   body: Stmt
   else_stmt: Stmt | None
+  # TODO: only accept SScope
+  # TODO: allow if (...) do ...
 
 @dataclass
 class SWhile(Stmt):
   clause: Expr
   body: Stmt
+
+@dataclass
+class SDebug(Stmt):
+  id: EId
 
 @dataclass
 class File(AstNode):

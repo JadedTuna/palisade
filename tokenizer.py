@@ -9,6 +9,7 @@ KEYWORDS = [
   'if',
   'else',
   'while',
+  'debug',
 
   'true',
   'false',
