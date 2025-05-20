@@ -4,14 +4,17 @@ DIGITS = string.digits
 HEXDIGITS = DIGITS + 'ABCDEF'
 ID_START = string.ascii_letters + '_'
 ID_BODY = ID_START + DIGITS
-EASY_MAP = '+-/*%^()[]{}:;'
+EASY_MAP = '+-/*%^~()[]{}:;'
 KEYWORDS = [
   'if',
   'else',
   'while',
 
   'true',
-  'false'
+  'false',
+
+  'high',
+  'low',
 ]
 
 from lib.ast import Span, Token

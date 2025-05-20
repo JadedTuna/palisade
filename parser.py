@@ -1,4 +1,5 @@
 from lib.ast import *
+from lib.types import TUnresolved
 from lib.utils import report_error
 
 PRECTABLE_ARITH      = 0
@@ -41,9 +42,12 @@ BINOPS = {
   '==': (PRECTABLE_COMPARISON, 1),
   '!=': (PRECTABLE_COMPARISON, 1),
 }
-UNOPS = [
-  '-', '+', '!', '~',
-]
+UNOPS = {
+  '-': PRECTABLE_ARITH,
+  '+': PRECTABLE_ARITH,
+  '!': PRECTABLE_BOOLEAN,
+  '~': PRECTABLE_BITWISE,
+}
 
 class Parser:
   def __init__(self, tokens):
@@ -82,7 +86,7 @@ class Parser:
     while not self.maybe('eof'):
       stmts.append(self.parse_stmt())
 
-    return File(stmts)
+    return File(FAKE_SPAN, stmts, SymTab(None, {}))
 
   def check_precedence(self, prev_op, op) -> bool:
     if prev_op is None:
@@ -119,7 +123,7 @@ class Parser:
       # consume operator token
       self.consume()
       rhs = self.parse_expr_prec(op)
-      expr = EBinOp(op.type, expr, rhs)
+      expr = EBinOp(op.span, TUnresolved(), HIGH, op.type, expr, rhs)
 
   def parse_term(self):
     if self.maybe('identifier'):
@@ -135,28 +139,25 @@ class Parser:
       return expr
     elif self.maybe(*UNOPS):
       op = self.consume()
-      return EUnOp(op.type, self.parse_term())
+      return EUnOp(op.span, TUnresolved(), HIGH, op.type, self.parse_term())
     else:
       report_error('unexpected token while parsing expression', self.token().span)
       # raise RuntimeError(self.token())
 
   def parse_identifier(self) -> EId:
     tok = self.expect('identifier')
-    return EId(tok.value)
+    return EId(tok.span, TUnresolved(), HIGH, tok.value, SYMBOL_UNRESOLVED)
 
   def parse_integer(self) -> EInt:
     tok = self.expect('integer', 'integer_hex')
     if tok.type == 'integer_hex':
-      return EInt(int(tok.value, 16))
+      return EInt(tok.span, TUnresolved(), LOW, int(tok.value, 16))
     else:
-      return EInt(int(tok.value))
+      return EInt(tok.span, TUnresolved(), LOW, int(tok.value))
 
   def parse_boolean(self) -> EBool:
-    if self.maybe('true'):
-      tok = self.expect('true')
-    else:
-      tok = self.expect('false')
-    return EBool(tok.type == 'true')
+    tok = self.expect('true', 'false')
+    return EBool(tok.span, TUnresolved(), LOW, tok.type == 'true')
 
   def parse_stmt(self) -> Stmt:
     if self.maybe('{'):
@@ -165,6 +166,8 @@ class Parser:
       return self.parse_if()
     elif self.maybe('while'):
       return self.parse_while()
+    elif self.maybe('high', 'low'):
+      return self.parse_vardef()
     elif self.maybe('identifier'):
       # TODO: function calls
       # TODO: high/low
@@ -175,26 +178,26 @@ class Parser:
       # raise RuntimeError(self.token())
 
   def parse_scope(self) -> SScope:
-    self.expect('{')
+    tok = self.expect('{')
     stmts = []
     while not self.maybe('}'):
       stmts.append(self.parse_stmt())
     self.expect('}')
 
-    return SScope(stmts)
+    return SScope(tok.span, stmts, SymTab(None, {}))
 
   def parse_assign(self) -> SAssign:
     # identifier = expr ;
     lhs = self.parse_identifier()
-    self.expect('=')
+    tok = self.expect('=')
     rhs = self.parse_expr()
     self.expect(';')
 
-    return SAssign(lhs, rhs)
+    return SAssign(tok.span, lhs, rhs)
 
   def parse_if(self) -> SIf:
     # if ( clause ) stmt [else stmt]
-    self.expect('if')
+    tok = self.expect('if')
     self.expect('(')
     clause = self.parse_expr()
     self.expect(')')
@@ -207,15 +210,27 @@ class Parser:
     else:
       else_stmt = None
 
-    return SIf(clause, body, else_stmt)
+    return SIf(tok.span, clause, body, else_stmt)
 
   def parse_while(self) -> SWhile:
     # while ( clause ) stmt
-    self.expect('while')
+    tok = self.expect('while')
     self.expect('(')
     clause = self.parse_expr()
     self.expect(')')
 
     body = self.parse_stmt()
 
-    return SWhile(clause, body)
+    return SWhile(tok.span, clause, body)
+
+  def parse_vardef(self) -> SVarDef:
+    # high|low identifier = expr ;
+    sectok = self.expect('high', 'low')
+    secure = sectok.type == 'high'
+    lhs = self.parse_identifier()
+    tok = self.expect('=')
+    rhs = self.parse_expr()
+    self.expect(';')
+
+    return SVarDef(tok.span, secure, lhs, rhs)
+

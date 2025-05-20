@@ -2,7 +2,11 @@
 from pprint import pprint
 from tokenizer import Tokenizer
 from parser import Parser
-from type_check import type_check
+from symbolize import symbolize
+# from type_check import type_check
+# from security import check_explicit_flows
+
+from traverse import make_traverse
 
 SRC = """
 if (1) {
@@ -31,9 +35,45 @@ x = a || b + c;
 SRC3 = """
 + - / * % ^ & | = == != >= <= << >> || &&
 """
+
+TODO1 = """
+fn foo() {
+  low z = 10 + y;
+  low x = 20;
+}
+
+high x = 20;
+foo();
+"""
+
 SRC = """
 
-x = a + b * (c >> 2);
+high y = 20;
+y = ~20;
+
+if (10 <= 0) {
+  low z = 10 + y;
+  low x = 20;
+} else {
+  low uuu = false;
+}
+
+high x = 20;
+
+x = 7 + 8;
+x = 27;
+
+"""
+
+SRC = """
+high x = false;
+low y = false;
+y = false;
+{
+  {
+
+  }
+}
 
 """
 
@@ -45,6 +85,30 @@ tokenizer.tokenize()
 
 parser = Parser(tokenizer.tokens)
 ast = parser.parse()
-pprint(ast)
+# pprint(ast)
 
-ast = type_check(ast)
+# TODO: add symbolize
+# TODO: run check_explicit_flows before type_check
+# to remove side channel (is high x int or bool?)
+
+ast = symbolize(ast.symtab, ast)
+
+# ast = type_check(ast, ast.symtab)
+
+# ast = check_explicit_flows(ast)
+
+# pprint(ast)
+
+from lib.ast import *
+def _print_symtabs(node: AstNode):
+  match node:
+    case EId(_, _, secure, name):
+      print(name)
+    case File(_, _, symtab) | SScope(_, _, symtab):
+      pprint(symtab)
+  return node
+
+print_symtabs = make_traverse(_print_symtabs, lambda x: x)
+print_symtabs(ast)
+
+pprint(ast)

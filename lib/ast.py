@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from .types import Type, TUnresolved
 
 @dataclass
 class Span:
@@ -18,17 +19,49 @@ class Token:
 FAKE_SPAN = Span(0, 0, 0, 0, 0, '')
 TOKEN_EOF = Token('eof', 'eof', FAKE_SPAN)
 
+HIGH = True
+LOW  = False
+
+@dataclass
+class Symbol:
+  name: str
+  type: Type
+  secure: bool
+
+SYMBOL_UNRESOLVED = Symbol('UNRESOLVED', TUnresolved(), HIGH)
+
+@dataclass
+class SymTab:
+  parent: 'SymTab|None'
+  symbols: dict[str, Symbol]
+
+  def lookup(self, name: str) -> Symbol|None:
+    if name in self.symbols:
+      return self.symbols[name]
+    elif self.parent is not None:
+      # not in this scope
+      return self.parent.lookup(name)
+    else:
+      # not found
+      return None
+
+  def register(self, name: str, sym: Symbol):
+    assert(self.lookup(name) is None)
+    self.symbols[name] = sym
+
 @dataclass
 class AstNode:
-  pass
+  span: Span = field(repr=False)
 
 @dataclass
 class Expr(AstNode):
   type: Type
+  secure: bool
 
 @dataclass
 class EId(Expr):
   name: str
+  sym: Symbol
 
 @dataclass
 class EInt(Expr):
@@ -56,6 +89,13 @@ class Stmt(AstNode):
 @dataclass
 class SScope(Stmt):
   stmts: list[Stmt]
+  symtab: SymTab = field(repr=False)
+
+@dataclass
+class SVarDef(Stmt):
+  secure: bool
+  lhs: EId
+  rhs: Expr
 
 @dataclass
 class SAssign(Stmt):
@@ -76,3 +116,4 @@ class SWhile(Stmt):
 @dataclass
 class File(AstNode):
   stmts: list[Stmt]
+  symtab: SymTab = field(repr=False)
