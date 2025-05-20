@@ -4,7 +4,7 @@ DIGITS = string.digits
 HEXDIGITS = DIGITS + 'ABCDEF'
 ID_START = string.ascii_letters + '_'
 ID_BODY = ID_START + DIGITS
-EASY_MAP = '+-/*%^~()[]{}:;'
+EASY_MAP = '+-*%^~()[]{}:;'
 KEYWORDS = [
   'if',
   'else',
@@ -101,6 +101,9 @@ class Tokenizer:
         elif c == '!':
           self.token_start('!')
           self.advance()
+        elif c == '/':
+          self.token_start('/')
+          self.advance()
         # end single-char/dual-char operators
         elif c in EASY_MAP:
           self.token_onec(c)
@@ -175,6 +178,18 @@ class Tokenizer:
           self.token_end('!=')
         else:
           self.token_end('!')
+      elif self.state == '/':
+        if c == '/':
+          # comment
+          self.state = 'comment'
+        else:
+          self.token_end('/')
       # end single-char/dual-char operators
+      elif self.state == 'comment':
+        # keep skipping until newline
+        if c == '\n':
+          self.state = 'default'
+        else:
+          self.advance()
       else:
         raise RuntimeError(self.state)
