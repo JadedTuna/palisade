@@ -1,91 +1,59 @@
 #!/usr/bin/env python3
-from pprint import pprint
-from tokenizer import Tokenizer
-from parser import Parser
-from symbolize import symbolize
-from type_check import type_check
-from security import *
+import click
 
-from traverse import make_traverse
+@click.group()
+def cli():
+  pass
 
-SRC = """
-if (1) {
-  xxx = 27;
-  y = 5;
-} else if (2)
-  y = true;
-else while (5) y = 2;
-"""
-SRC2 = """
-x = 0xAB8 + -y * a >> 7 || 2;
+@cli.command()
+@click.argument('file')
+@click.option('--p-tokens', is_flag=True, help='print tokens')
+@click.option('--p-parse', is_flag=True, help='print AST after parsing')
+@click.option('--p-symbolize', is_flag=True, help='print AST after symbolize')
+@click.option('--p-type-annot', is_flag=True, help='print AST after type-annotation')
+@click.option('--p-sec-labels', is_flag=True, help='print AST after assigning security labels')
+@click.option('--p-type-check', is_flag=True, help='print AST after type-checking')
+@click.option('--explicit-flows/--no-explicit-flows', default=True,
+  help='perform explicit flows check')
+def compile(file, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_labels,
+            p_type_check, explicit_flows):
+  '''Compile a given file and perform security checks'''
+  from lib.utils import pprint
+  from tokenizer import Tokenizer
+  from parser import Parser
+  from symbolize import symbolize
+  from type_check import type_annotate, type_check
+  from security import assign_security_labels
+  from debug import debug_ast
 
+  with open(file) as fp:
+    SRC = fp.read()
 
-x = a ^ b == c;
-x = a == b ^ c;
+  tokenizer = Tokenizer(SRC)
+  tokenizer.tokenize()
+  if p_tokens: pprint(tokenizer.tokens)
 
-x = a >> b == c;
-x = a == b >> c;
+  parser = Parser(tokenizer.tokens)
+  ast = parser.parse()
+  if p_parse: pprint(ast)
 
-x = (a + b) == c;
-x = a == (b + c);
-x = a >> b == c;
-x = a == b >> c;
-x = a || b + c;
-"""
-SRC3 = """
-+ - / * % ^ & | = == != >= <= << >> || &&
-"""
+  ast = symbolize(ast.symtab, ast)
+  if p_symbolize: pprint(ast)
 
-TODO1 = """
-fn foo() {
-  low z = 10 + y;
-  low x = 20;
-}
+  ast = type_annotate(ast)
+  if p_type_annot: pprint(ast)
 
-high x = 20;
-foo();
-"""
+  ast = assign_security_labels(ast)
+  if p_sec_labels: pprint(ast)
 
-SRC = """
+  debug_ast(ast)
 
-high y = 20;
-y = ~20;
+  if explicit_flows:
+    from security import check_explicit_flows
+    ast = check_explicit_flows(ast)
 
-if (10 <= 0) {
-  low z = 10 + y;
-  low x = 20;
-} else {
-  low uuu = false;
-}
+  ast = type_check(ast)
+  if p_type_check: pprint(ast)
 
-high x = 20;
-
-x = 7 + 8;
-x = 27;
-
-"""
-
-SRC = """
-high z = true;
-if (z) {
-  z = false;
-  debug z;
-  low x = z;
-}
-
-"""
-
-tokenizer = Tokenizer(SRC)
-tokenizer.tokenize()
-
-parser = Parser(tokenizer.tokens)
-ast = parser.parse()
-
-ast = symbolize(ast.symtab, ast)
-ast = assign_security_labels(ast)
-security_debug(ast)
-ast = check_explicit_flows(ast)
-ast = type_check(ast)
-
-
-# pprint(ast)
+if __name__ == '__main__':
+  cli()
