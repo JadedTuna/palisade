@@ -25,6 +25,22 @@ def _debug_ast(node: AstNode):
         report_debug(f'defined on line {lnum}', id.sym.origin)
       print()
       return node
+    case SDebug(_, EInt(span, t, sec, _) | EBool(span, t, sec, _)):
+      ts = dpprint_type(t)
+      ss = dpprint_seclabel(sec)
+      report_debug(f'{blue("type:")} {ts}, {blue("seclabel:")} {ss}', span)
+      return node
+    case SDebug(_, EUnOp(span, t, sec, _, Expr(_, et, esec))):
+      report_debug(f'expression with binary operator', span)
+      print(blue('type:'), dpprint_type(t), end=', ')
+      print(blue('seclabel:'), dpprint_seclabel(sec))
+
+      print(cyan('expr: '), end='')
+      print(blue('type:'), dpprint_type(et), end=', ')
+      print(blue('seclabel:'), dpprint_seclabel(esec))
+      print()
+
+      return node
     case SDebug(_, EBinOp(span, type, secure, op, lhs, rhs)):
       report_debug(f'expression with binary operator', span)
       print(blue('type:'), dpprint_type(type), end=', ')
@@ -41,7 +57,7 @@ def _debug_ast(node: AstNode):
 
       return node
     case SDebug(_, x):
-      report_debug('', x.span, None, x)
+      report_debug('no special debug handler found', x.span, None, x)
       return node
     case _:
       return node

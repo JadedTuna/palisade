@@ -1,6 +1,3 @@
 high x = true;
-if (x) {
-	debug x;
-	debug 2 + x;
-}
+debug x;
 low y = x;
