@@ -7,7 +7,7 @@ def _symbolize_pre(node: AstNode, symtab: SymTab):
     case SScope(_, _, symtab_):
       symtab_.parent = symtab
       return (node, symtab_)
-    case SVarDef(span, secure, lhs, rhs):
+    case SVarDef(span, secure, lhs, _):
       sym = symtab.lookup(lhs.name)
       if sym is not None:
         report_error(f'redefinition of {lhs.name}', span)

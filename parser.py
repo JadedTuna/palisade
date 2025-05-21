@@ -8,7 +8,7 @@ PRECTABLE_SHIFT      = 2
 PRECTABLE_BOOLEAN    = 3
 PRECTABLE_COMPARISON = 4
 
-PRECTABLE_TYPE = {
+PRECTABLE_AUTO_RESOLUTION = {
   (PRECTABLE_ARITH, PRECTABLE_COMPARISON):   True,
   (PRECTABLE_BITWISE, PRECTABLE_COMPARISON): True,
   (PRECTABLE_SHIFT, PRECTABLE_COMPARISON):   True,
@@ -68,8 +68,6 @@ class Parser:
       else:
         s = types[0]
       report_error(f'expected {s} but got {tok.type}', tok.span)
-      # raise RuntimeError(f'expected {s} but got {tok.type}')
-      # exit(1)
     self.idx += 1
     return tok
 
@@ -81,45 +79,40 @@ class Parser:
     self.idx += 1
     return tok
 
-  def parse(self) -> File:
-    stmts = []
-    while not self.maybe('eof'):
-      stmts.append(self.parse_stmt())
-
-    return File(FAKE_SPAN, stmts, SymTab(None, {}))
-
   def check_precedence(self, prev_op, op) -> bool:
     if prev_op is None:
       return False
-
     prev_type, prev_prio = BINOPS[prev_op.type]
     type, prio = BINOPS[op.type]
     if prev_type == type:
       # same type of op
       return prev_prio >= prio
-    elif (prev_type, type) in PRECTABLE_TYPE:
+    elif (prev_type, type) in PRECTABLE_AUTO_RESOLUTION:
       # no ambiguity between op types
-      return PRECTABLE_TYPE[(prev_type, type)]
+      return PRECTABLE_AUTO_RESOLUTION[(prev_type, type)]
     else:
       report_error('ambiguous precedence, use parenthesis', op.span)
+
+  def parse(self) -> File:
+    stmts = []
+    while not self.maybe('eof'):
+      stmts.append(self.parse_stmt())
+    return File(FAKE_SPAN, stmts, SymTab(None, {}))
 
   def parse_expr(self):
     return self.parse_expr_prec(None)
 
   def parse_expr_prec(self, prev_op):
     expr = self.parse_term()
-
     while True:
       op = self.token()
       if not op.type in BINOPS:
         # not an operator, expression is done
         return expr
-
       # check precedence
       if self.check_precedence(prev_op, op):
         # prev_op binds tighter than op
         return expr
-
       # consume operator token
       self.consume()
       rhs = self.parse_expr_prec(op)
@@ -142,7 +135,6 @@ class Parser:
       return EUnOp(op.span, TUnresolved(), HIGH, op.type, self.parse_term())
     else:
       report_error('unexpected token while parsing expression', self.token().span)
-      # raise RuntimeError(self.token())
 
   def parse_identifier(self) -> EId:
     tok = self.expect('identifier')
@@ -171,13 +163,11 @@ class Parser:
     elif self.maybe('debug'):
       return self.parse_debug()
     elif self.maybe('identifier'):
-      # TODO: function calls
-      # TODO: high/low
       return self.parse_assign()
+    # TODO: function calls
     # TODO: skip
     else:
       report_error('unexpected token while parsing statement', self.token().span)
-      # raise RuntimeError(self.token())
 
   def parse_scope(self) -> SScope:
     tok = self.expect('{')
@@ -185,63 +175,52 @@ class Parser:
     while not self.maybe('}'):
       stmts.append(self.parse_stmt())
     self.expect('}')
-
     return SScope(tok.span, stmts, SymTab(None, {}))
 
   def parse_assign(self) -> SAssign:
-    # identifier = expr ;
+    # identifier = expr;
     lhs = self.parse_identifier()
     tok = self.expect('=')
     rhs = self.parse_expr()
     self.expect(';')
-
     return SAssign(tok.span, lhs, rhs)
 
   def parse_if(self) -> SIf:
-    # if ( clause ) stmt [else stmt]
+    # if (clause) stmt [else stmt]
     tok = self.expect('if')
     self.expect('(')
     clause = self.parse_expr()
     self.expect(')')
-
     body = self.parse_stmt()
-
     if self.maybe('else'):
       self.expect('else')
       else_stmt = self.parse_stmt()
     else:
       else_stmt = None
-
     return SIf(tok.span, clause, body, else_stmt)
 
   def parse_while(self) -> SWhile:
-    # while ( clause ) stmt
+    # while (clause) stmt
     tok = self.expect('while')
     self.expect('(')
     clause = self.parse_expr()
     self.expect(')')
-
     body = self.parse_stmt()
-
     return SWhile(tok.span, clause, body)
 
   def parse_debug(self) -> SDebug:
-    # debug identifier ;
+    # debug identifier;
     tok = self.expect('debug')
     expr = self.parse_expr()
     self.expect(';')
-
     return SDebug(tok.span, expr)
 
   def parse_vardef(self) -> SVarDef:
-    # high|low identifier = expr ;
+    # (high|low) identifier = expr ;
     sectok = self.expect('high', 'low')
     secure = sectok.type == 'high'
     lhs = self.parse_identifier()
     tok = self.expect('=')
     rhs = self.parse_expr()
     self.expect(';')
-
     return SVarDef(tok.span, secure, lhs, rhs)
-
-

@@ -28,15 +28,12 @@ def _check_explicit_flows(node: AstNode):
       return node
     case SVarDef(span, _, lhs, rhs):
       if lhs.secure == LOW and rhs.secure == HIGH:
-        # TODO: have diff function with diff colors
         report_security_error('insecure explicit flow', span)
       return node
     case SAssign(span, lhs, rhs):
       if lhs.secure == LOW and rhs.secure == HIGH:
-        # TODO: have diff function with diff colors
         report_security_error('insecure explicit flow', span)
       return node
-
     case _:
       report_error('unexpected node while checking explicit flows', node.span)
 

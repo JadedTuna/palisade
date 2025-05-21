@@ -28,7 +28,6 @@ def _traverse(f, node: AstNode):
       nlhs = f(lhs)
       nrhs = f(rhs)
       return EBinOp(span, type, sec, op, nlhs, nrhs)
-
     case SScope(span, stmts, symtab):
       nstmts = [f(s) for s in stmts]
       return SScope(span, nstmts, symtab)
@@ -52,10 +51,8 @@ def _traverse(f, node: AstNode):
     case SDebug(span, id):
       nid = f(id)
       return SDebug(span, nid)
-
     case File(span, stmts, symtab):
       nstmts = [f(s) for s in stmts]
       return File(span, nstmts, symtab)
-
     case _:
       report_error('unexpected node in traverse', node.span)

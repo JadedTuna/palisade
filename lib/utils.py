@@ -1,7 +1,6 @@
 from pprint import pprint
 from typing import NoReturn
 from sys import exit
-
 from .ast import Span
 
 def color(s, c): return f'\033[1;{c}m{s}\033[0m'
@@ -16,7 +15,6 @@ def report(level: str, msg: str, span: Span, colorfn, preamble_lines: int = 2,
   lines = span.src.splitlines()
   lstart = max(span.lnum - preamble_lines, 1)
   lend = span.lnum
-
   # TODO: strip whitespace from the left of all lines, consistently
   # print preamble lines
   print(colorfn(f'{level}: ') + msg)

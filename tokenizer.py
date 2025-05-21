@@ -1,4 +1,6 @@
 import string
+from lib.ast import Span, Token
+
 WHITESPACE = string.whitespace
 DIGITS = string.digits
 HEXDIGITS = DIGITS + 'ABCDEF'
@@ -17,8 +19,6 @@ KEYWORDS = [
   'high',
   'low',
 ]
-
-from lib.ast import Span, Token
 
 class Tokenizer:
   def __init__(self, src):

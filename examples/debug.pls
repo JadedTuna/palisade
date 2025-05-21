@@ -1,5 +1,5 @@
 high x = true;
-low y = false
+low y = false;
 debug x || y;
 debug false && x;
 debug -2;

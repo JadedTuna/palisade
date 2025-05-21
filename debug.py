@@ -22,8 +22,7 @@ def _debug_ast(node: AstNode):
       print(blue('seclabel:'), dpprint_seclabel(id.secure))
       if id.sym is not SYMBOL_UNRESOLVED:
         lnum = id.sym.origin.lnum + 1
-        report_debug(f'defined on line {lnum}', id.sym.origin)
-      print()
+        report_debug(f'defined on line {lnum}', id.sym.origin, '\n')
       return node
     case SDebug(_, EInt(span, t, sec, _) | EBool(span, t, sec, _)):
       ts = dpprint_type(t)
@@ -34,12 +33,9 @@ def _debug_ast(node: AstNode):
       report_debug(f'expression with binary operator', span)
       print(blue('type:'), dpprint_type(t), end=', ')
       print(blue('seclabel:'), dpprint_seclabel(sec))
-
       print(cyan('expr: '), end='')
       print(blue('type:'), dpprint_type(et), end=', ')
-      print(blue('seclabel:'), dpprint_seclabel(esec))
-      print()
-
+      print(blue('seclabel:'), dpprint_seclabel(esec), '\n')
       return node
     case SDebug(_, EBinOp(span, type, secure, op, lhs, rhs)):
       report_debug(f'expression with binary operator', span)
@@ -52,9 +48,7 @@ def _debug_ast(node: AstNode):
 
       print(cyan('rhs: '), end='')
       print(blue('type:'), dpprint_type(rhs.type), end=', ')
-      print(blue('seclabel:'), dpprint_seclabel(rhs.secure))
-      print()
-
+      print(blue('seclabel:'), dpprint_seclabel(rhs.secure), '\n')
       return node
     case SDebug(_, x):
       report_debug('no special debug handler found', x.span, None, x)
