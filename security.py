@@ -20,6 +20,9 @@ def assign_security_labels(node: AstNode):
       nnode = map_tree(assign_security_labels, node)
       nnode.body.secure = nnode.clause.secure
       return nnode
+    case SDeclassify(span, type, _, expr):
+      nexpr = assign_security_labels(expr)
+      return SDeclassify(span, type, LOW, nexpr)
     case SScope() | SVarDef() | SAssign() | SDebug() | File():
       return map_tree(assign_security_labels, node)
     case _:
@@ -31,7 +34,7 @@ def check_explicit_flows(node: AstNode):
       walk_tree(check_explicit_flows, node)
     case SScope() | SIf() | SWhile() | SDebug() | File():
       walk_tree(check_explicit_flows, node)
-    case SVarDef(span, sec, lhs, rhs):
+    case SVarDef(span, _, lhs, rhs):
       if lhs.secure == LOW and rhs.secure == HIGH:
         report_security_error('insecure explicit flow', span)
     case SAssign(span, lhs, rhs):
@@ -42,14 +45,14 @@ def check_explicit_flows(node: AstNode):
 
 def check_implicit_flows(node: AstNode, pc: bool):
   match node:
-    case SIf(_, clause, _, _):
+    case SIf(_, clause):
       pc = clause.secure == HIGH or pc == HIGH
       walk_tree(check_implicit_flows, node, pc)
-    case SWhile(_, clause, _):
+    case SWhile(_, clause):
       if(pc == HIGH or clause.secure == HIGH):
         report_security_error('insecure implicit flow, while loop with a high guard', node.span)
       walk_tree(check_implicit_flows, node, pc)
-    case SAssign(_, lhs, _):
+    case SAssign(_, lhs):
       if(pc == HIGH and lhs.secure == LOW):
         report_security_error('insecure implicit flow inside high guard', node.span)
       walk_tree(check_implicit_flows, node, pc)

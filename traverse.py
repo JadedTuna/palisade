@@ -69,6 +69,9 @@ def _traverse_tree(f, acc, node: AstNode):
     case SDebug(span, expr):
       acc, nexpr = f(acc, expr)
       return (acc, SDebug(span, nexpr))
+    case SDeclassify(span, type, sec, expr):
+      acc, nexpr = f(acc, expr)
+      return (acc, SDeclassify(span, type, sec, nexpr))
     case File(span, stmts, symtab):
       nstmts = []
       for stmt in stmts:

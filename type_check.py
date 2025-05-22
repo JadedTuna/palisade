@@ -54,6 +54,9 @@ def type_annotate(node: AstNode):
       sym.type = nrhs.type
       nlhs = type_annotate(lhs)
       return SVarDef(span, sec, nlhs, nrhs)
+    case SDeclassify(span, type, sec, expr):
+      nexpr = type_annotate(expr)
+      return SDeclassify(span, type, sec, nexpr)
     case SScope() | SAssign() | SIf() | SWhile() | SDebug() | File():
       return map_tree(type_annotate, node)
     case _:
@@ -101,6 +104,10 @@ def type_check(node: AstNode):
         report_error('while-statement clause should be a bool', span)
       nbody = type_check(body)
       return SWhile(span, nclause, nbody)
+    case SDeclassify(span, _, sec, expr):
+      nexpr = type_check(expr)
+      ntype = nexpr.type
+      return SDeclassify(span, ntype, sec, nexpr)
     case SScope() | SVarDef() | SDebug() | File():
       return map_tree(type_check, node)
     case _:

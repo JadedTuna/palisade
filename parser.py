@@ -100,6 +100,8 @@ class Parser:
     return File(FAKE_SPAN, stmts, SymTab(None, {}))
 
   def parse_expr(self):
+    if(self.maybe('declassify')):
+      return self.parse_declassify()
     return self.parse_expr_prec(None)
 
   def parse_expr_prec(self, prev_op):
@@ -213,11 +215,17 @@ class Parser:
     return SWhile(tok.span, clause, body)
 
   def parse_debug(self) -> SDebug:
-    # debug identifier;
+    # debug expr;
     tok = self.expect('debug')
     expr = self.parse_expr()
     self.expect(';')
     return SDebug(tok.span, expr)
+  
+  def parse_declassify(self) -> SDeclassify:
+    # declassify expr;
+    tok = self.expect('declassify')
+    expr = self.parse_expr()
+    return SDeclassify(tok.span, TUnresolved(), LOW, expr)
 
   def parse_vardef(self) -> SVarDef:
     # (high|low) identifier = expr ;

@@ -122,6 +122,10 @@ class SDebug(Stmt):
   expr: Expr
 
 @dataclass
+class SDeclassify(Expr):
+  expr: Expr
+
+@dataclass
 class File(AstNode):
   stmts: list[Stmt]
   symtab: SymTab = field(repr=False)

@@ -15,6 +15,7 @@ KEYWORDS = [
   'else',
   'while',
   'debug',
+  'declassify',
 
   'true',
   'false',
