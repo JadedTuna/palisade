@@ -121,7 +121,7 @@ class Parser:
   def parse_term(self):
     if self.maybe('identifier'):
       return self.parse_identifier()
-    elif self.maybe('integer', 'integer_hex'):
+    elif self.maybe('integer', 'integer_hex', 'integer_bin', 'integer_oct'):
       return self.parse_integer()
     elif self.maybe('true', 'false'):
       return self.parse_boolean()
@@ -141,9 +141,13 @@ class Parser:
     return EId(tok.span, TUnresolved(), HIGH, tok.value, SYMBOL_UNRESOLVED)
 
   def parse_integer(self) -> EInt:
-    tok = self.expect('integer', 'integer_hex')
+    tok = self.expect('integer', 'integer_hex', 'integer_bin', 'integer_oct')
     if tok.type == 'integer_hex':
       return EInt(tok.span, TUnresolved(), LOW, int(tok.value, 16))
+    if tok.type == 'integer_bin':
+      return EInt(tok.span, TUnresolved(), LOW, int(tok.value, 2))
+    if tok.type == 'integer_oct':
+      return EInt(tok.span, TUnresolved(), LOW, int(tok.value, 8))
     else:
       return EInt(tok.span, TUnresolved(), LOW, int(tok.value))
 

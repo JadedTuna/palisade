@@ -1,8 +1,11 @@
 import string
 from lib.ast import Span, Token
+from lib.utils import report_error
 
 WHITESPACE = string.whitespace
 DIGITS = string.digits
+BINDIGITS = '01'
+OCTDIGITS = '01234567'
 HEXDIGITS = DIGITS + 'ABCDEF'
 ID_START = string.ascii_letters + '_'
 ID_BODY = ID_START + DIGITS
@@ -54,13 +57,14 @@ class Tokenizer:
     self.tok_cstart = self.cnum
     self.state = state
 
-  def token_end(self, type: str|None = None):
+  def token_end(self, type: str|None = None) -> Token:
     if type is None:
       type = self.state
     span = Span(self.tok_start, self.idx, self.lnum, self.tok_cstart, self.cnum, self.src)
     token = Token(type, self.src[self.tok_start:self.idx], span)
     self.tokens.append(token)
     self.state = 'default'
+    return token
 
   def token_onec(self, type):
     span = Span(self.idx, self.idx+1, self.lnum, self.cnum, self.cnum+1, self.src)
@@ -79,6 +83,7 @@ class Tokenizer:
           self.token_start('identifier')
         elif c == '0':
           self.token_start('integer_0')
+          # next character will determine type: 0x, 0o, 0b
           self.advance()
         elif c in DIGITS:
           self.token_start('integer')
@@ -118,16 +123,46 @@ class Tokenizer:
             self.token_end(self.value())
           else:
             self.token_end('identifier')
+      # start integer handling
       elif self.state == 'integer_0':
         if c == 'x':
-          # TODO: handle dangling 0x
-          self.advance()
           self.state = 'integer_hex'
+          self.advance()
+        elif c == 'b':
+          self.state = 'integer_bin'
+          self.advance()
+        elif c == 'o':
+          self.state = 'integer_oct'
+          self.advance()
+        elif c in DIGITS:
+          tok = self.token_end()
+          report_error('leading zeroes with no prefix are not allowed,' +
+            ' use 0o for octal', tok.span)
         else:
-          self.state = 'integer'
+          # just a single zero
+          self.token_end('integer')
       elif self.state == 'integer_hex':
         if c in HEXDIGITS:
           self.advance()
+        elif self.value() == '0x':
+          tok = self.token_end()
+          report_error('empty hex literal', tok.span)
+        else:
+          self.token_end()
+      elif self.state == 'integer_bin':
+        if c in BINDIGITS:
+          self.advance()
+        elif self.value() == '0b':
+          tok = self.token_end()
+          report_error('empty binary literal', tok.span)
+        else:
+          self.token_end()
+      elif self.state == 'integer_oct':
+        if c in OCTDIGITS:
+          self.advance()
+        elif self.value() == '0o':
+          tok = self.token_end()
+          report_error('empty octal literal', tok.span)
         else:
           self.token_end()
       elif self.state == 'integer':
@@ -135,7 +170,8 @@ class Tokenizer:
           self.advance()
         else:
           self.token_end()
-      # single-char/dual-char operators
+      # end integer handling
+      # start single-char/dual-char operators
       elif self.state == '=':
         if c == '=':
           self.advance()
@@ -182,6 +218,7 @@ class Tokenizer:
         if c == '/':
           # comment
           self.state = 'comment'
+          self.advance()
         else:
           self.token_end('/')
       # end single-char/dual-char operators
