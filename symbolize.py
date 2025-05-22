@@ -11,7 +11,7 @@ def symbolize(node: AstNode, symtab: SymTab):
       return EId(span, type, sec, name, sym)
     case SScope(span, stmts, sec, symtab_):
       symtab_.parent = symtab
-      nstmts = [symbolize(stmt, symtab) for stmt in stmts]
+      nstmts = [symbolize(stmt, symtab_) for stmt in stmts]
       return SScope(span, nstmts, sec, symtab_)
     case SVarDef(span, sec, EId(_, _, _, name, _) as lhs, rhs):
       nrhs = symbolize(rhs, symtab)
