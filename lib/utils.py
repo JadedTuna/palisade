@@ -1,7 +1,7 @@
 from pprint import pprint
 from typing import NoReturn
 from sys import exit
-from .ast import Span
+from .ast import Span, FAKE_SPAN
 
 def color(s, c): return f'\033[1;{c}m{s}\033[0m'
 def red(s): return color(s, 31)
@@ -12,32 +12,33 @@ def yellow(s): return color(s, 93)
 
 def report(level: str, msg: str, span: Span, colorfn, preamble_lines: int = 2,
            epilogue: str|None = None, epilogue_pp = None):
-  lines = span.src.splitlines()
-  lstart = max(span.lnum - preamble_lines, 1)
-  lend = span.lnum
-  # TODO: strip whitespace from the left of all lines, consistently
-  # print preamble lines
   print(colorfn(f'{level}: ') + msg)
-  for i in range(lstart, lend):
-    print(f'{i + 1:4} | ' + lines[i].replace('\t', '    '))
+  if span is not FAKE_SPAN:
+    lines = span.src.splitlines()
+    lstart = max(span.lnum - preamble_lines, 0)
+    lend = span.lnum
+    # TODO: strip whitespace from the left of all lines, consistently
+    # print preamble lines
+    for i in range(lstart, lend):
+      print(f'{i + 1:4} | ' + lines[i].replace('\t', '    '))
 
-  cstart = span.cstart
-  cend = span.cend
+    cstart = span.cstart
+    cend = span.cend
 
-  # print marked line
-  # NOTE: doing .replace on line here would mess up offsets
-  line = lines[lend]
-  before, highlighted, after = line[:cstart], line[cstart:cend], line[cend:]
-  print(f'{lend + 1:4} | '
-    + before.replace('\t', '    ')
-    + colorfn(highlighted).replace('\t', '    ')
-    + after.replace('\t', '    '))
+    # print marked line
+    # NOTE: doing .replace on line here would mess up offsets
+    line = lines[lend]
+    before, highlighted, after = line[:cstart], line[cstart:cend], line[cend:]
+    print(f'{lend + 1:4} | '
+      + before.replace('\t', '    ')
+      + colorfn(highlighted).replace('\t', '    ')
+      + after.replace('\t', '    '))
 
-  # print underline
-  extra_spaces = len(before.replace('\t', '    ')) - len(before)
-  print(' ' * 7 # padding for line numbers
-    + colorfn('~' * (cstart + extra_spaces))
-    + colorfn('^' * (cend - cstart)))
+    # print underline
+    extra_spaces = len(before.replace('\t', '    ')) - len(before)
+    print(' ' * 7 # padding for line numbers
+      + colorfn('~' * (cstart + extra_spaces))
+      + colorfn('^' * (cend - cstart)))
 
   if epilogue is not None:
     print(epilogue)
