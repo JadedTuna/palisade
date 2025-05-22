@@ -1,7 +1,7 @@
 from lib.ast import *
 from lib.types import *
 from lib.utils import *
-from traverse import make_traverse
+from traverse import walk_tree
 
 def dpprint_type(type: Type) -> str:
   match type:
@@ -13,7 +13,7 @@ def dpprint_type(type: Type) -> str:
 def dpprint_seclabel(seclabel: bool) -> str:
   return 'high' if seclabel else 'low'
 
-def _debug_ast(node: AstNode):
+def debug_ast(node: AstNode):
   match node:
     case SDebug(_, EId() as id):
       report_debug(f'variable {id.name}', id.span)
@@ -22,21 +22,18 @@ def _debug_ast(node: AstNode):
       print(blue('seclabel:'), dpprint_seclabel(id.secure))
       if id.sym is not SYMBOL_UNRESOLVED:
         lnum = id.sym.origin.lnum + 1
-        report_debug(f'defined on line {lnum}', id.sym.origin, '\n')
-      return node
+        report_debug(f'defined on line {lnum}', id.sym.origin, '')
     case SDebug(_, EInt(span, t, sec, _) | EBool(span, t, sec, _)):
       ts = dpprint_type(t)
       ss = dpprint_seclabel(sec)
       report_debug(f'{blue("type:")} {ts}, {blue("seclabel:")} {ss}', span)
-      return node
     case SDebug(_, EUnOp(span, t, sec, _, Expr(_, et, esec))):
-      report_debug(f'expression with binary operator', span)
+      report_debug(f'expression with unary operator', span)
       print(blue('type:'), dpprint_type(t), end=', ')
       print(blue('seclabel:'), dpprint_seclabel(sec))
       print(cyan('expr: '), end='')
       print(blue('type:'), dpprint_type(et), end=', ')
       print(blue('seclabel:'), dpprint_seclabel(esec), '\n')
-      return node
     case SDebug(_, EBinOp(span, type, secure, op, lhs, rhs)):
       report_debug(f'expression with binary operator', span)
       print(blue('type:'), dpprint_type(type), end=', ')
@@ -49,11 +46,7 @@ def _debug_ast(node: AstNode):
       print(cyan('rhs: '), end='')
       print(blue('type:'), dpprint_type(rhs.type), end=', ')
       print(blue('seclabel:'), dpprint_seclabel(rhs.secure), '\n')
-      return node
     case SDebug(_, x):
       report_debug('no special debug handler found', x.span, None, x)
-      return node
     case _:
-      return node
-
-debug_ast = make_traverse(_debug_ast)
+      walk_tree(debug_ast, node)

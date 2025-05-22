@@ -1,58 +1,78 @@
+'''
+# example usage of map_tree:
+def handler(arg1, arg2, node: AstNode):
+  match node:
+    case ...
+    ...
+    case _:
+      return map_tree(handler, node, arg1, arg2)
+'''
+
 from lib.ast import *
 from lib.utils import *
 from functools import partial
 
-def make_traverse_data(postcb, precb):
-  return partial(traverse_data, postcb, precb)
+def map_tree(f, node: AstNode, *args):
+  '''Build a new tree by mapping `f` over the each node.'''
+  f2 = lambda acc, n: (acc, f(n, *args))
+  return _traverse_tree(f2, None, node)[1]
 
-def make_traverse(postcb, precb = lambda x: x):
-  return partial(traverse, postcb, precb)
+def walk_tree(f, node: AstNode, *args):
+  '''Walk a tree and map `f` over each node. Does not build a new tree.'''
+  f2 = lambda acc, n: (acc, (f(n, *args), n)[1])
+  _traverse_tree(f2, None, node)
 
-def traverse_data(postcb, precb, data, node: AstNode):
-  nnode, ndata = precb(node, data)
-  f = partial(traverse_data, postcb, precb, ndata)
-  return postcb(_traverse(f, nnode), ndata)
+def traverse_tree(f, acc, node: AstNode, *args):
+  '''Traverse a tree, updating `acc` and building a new tree.'''
+  f2 = lambda acc1, n: f(acc1, n, *args)
+  return _traverse_tree(f2, acc, node)
 
-def traverse(postcb, precb, node: AstNode):
-  f = partial(traverse, postcb, precb)
-  return postcb(_traverse(f, precb(node)))
+def fold_tree(f, acc, node: AstNode, *args):
+  '''Map `f` over the each node and collect the results in `acc`.'''
+  return traverse_tree(f, acc, node, *args)[0]
 
-def _traverse(f, node: AstNode):
+def _traverse_tree(f, acc, node: AstNode):
   match node:
     case EId() | EInt() | EBool():
-      return node
+      return (acc, node)
     case EUnOp(span, type, sec, op, expr):
-      nexpr = f(expr)
-      return EUnOp(span, type, sec, op, nexpr)
+      acc, nexpr = f(acc, expr)
+      return (acc, EUnOp(span, type, sec, op, nexpr))
     case EBinOp(span, type, sec, op, lhs, rhs):
-      nlhs = f(lhs)
-      nrhs = f(rhs)
-      return EBinOp(span, type, sec, op, nlhs, nrhs)
+      acc, nlhs = f(acc, lhs)
+      acc, nrhs = f(acc, rhs)
+      return (acc, EBinOp(span, type, sec, op, nlhs, nrhs))
     case SScope(span, stmts, symtab):
-      nstmts = [f(s) for s in stmts]
-      return SScope(span, nstmts, symtab)
+      nstmts = []
+      for stmt in stmts:
+        acc, nstmt = f(acc, stmt)
+        nstmts.append(nstmt)
+      return (acc, SScope(span, nstmts, symtab))
     case SVarDef(span, sec, lhs, rhs):
-      nlhs = f(lhs)
-      nrhs = f(rhs)
-      return SVarDef(span, sec, nlhs, nrhs)
+      acc, nlhs = f(acc, lhs)
+      acc, nrhs = f(acc, rhs)
+      return (acc, SVarDef(span, sec, nlhs, nrhs))
     case SAssign(span, lhs, rhs):
-      nlhs = f(lhs)
-      nrhs = f(rhs)
-      return SAssign(span, nlhs, nrhs)
+      acc, nlhs = f(acc, lhs)
+      acc, nrhs = f(acc, rhs)
+      return (acc, SAssign(span, nlhs, nrhs))
     case SIf(span, clause, body, else_stmt):
-      nclause = f(clause)
-      nbody = f(body)
-      nelse_stmt = f(else_stmt) if else_stmt else None
-      return SIf(span, nclause, nbody, nelse_stmt)
+      acc, nclause = f(acc, clause)
+      acc, nbody = f(acc, body)
+      acc, nelse_stmt = f(acc, else_stmt) if else_stmt else (acc, None)
+      return (acc, SIf(span, nclause, nbody, nelse_stmt))
     case SWhile(span, clause, body):
-      nclause = f(clause)
-      nbody = f(body)
-      return SWhile(span, nclause, nbody)
-    case SDebug(span, id):
-      nid = f(id)
-      return SDebug(span, nid)
+      acc, nclause = f(acc, clause)
+      acc, nbody = f(acc, body)
+      return (acc, SWhile(span, nclause, nbody))
+    case SDebug(span, expr):
+      acc, nexpr = f(acc, expr)
+      return (acc, SDebug(span, nexpr))
     case File(span, stmts, symtab):
-      nstmts = [f(s) for s in stmts]
-      return File(span, nstmts, symtab)
+      nstmts = []
+      for stmt in stmts:
+        acc, nstmt = f(acc, stmt)
+        nstmts.append(nstmt)
+      return (acc, File(span, nstmts, symtab))
     case _:
-      report_error('unexpected node in traverse', node.span)
+      report_error('unhandled node in traverse', node.span)

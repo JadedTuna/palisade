@@ -48,9 +48,15 @@ def report_error(msg: str, span: Span) -> NoReturn:
   report('error', msg, span, red)
   exit(1)
 
+def report_error_cont(msg: str, span: Span):
+  report('error', msg, span, red)
+
 def report_security_error(msg: str, span: Span) -> NoReturn:
   report('security error', msg, span, purple)
   exit(1)
+
+def report_note(msg: str, span: Span):
+  report('note', msg, span, blue)
 
 def report_debug(msg: str, span: Span,
                  epilogue: str|None = None, epilogue_pp = None):

@@ -37,12 +37,14 @@ def compile(file, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_labels,
   ast = parser.parse()
   if p_parse: pprint(ast)
 
-  ast = symbolize(ast.symtab, ast)
+  ast = symbolize(ast, ast.symtab)
   if p_symbolize: pprint(ast)
 
   ast = type_annotate(ast)
   if p_type_annot: pprint(ast)
 
+  # seclabel pass runs before type-checking, to prevent potential
+  # side-channel information leakage (type of secure variable)
   ast = assign_security_labels(ast)
   if p_sec_labels: pprint(ast)
 
