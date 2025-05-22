@@ -106,15 +106,15 @@ class SAssign(Stmt):
 @dataclass
 class SIf(Stmt):
   clause: Expr
-  body: Stmt
-  else_stmt: Stmt | None
+  body: SScope
+  else_stmt: SScope | None
   # TODO: only accept SScope
   # TODO: allow if (...) do ...
 
 @dataclass
 class SWhile(Stmt):
   clause: Expr
-  body: Stmt
+  body: SScope
 
 @dataclass
 class SDebug(Stmt):
