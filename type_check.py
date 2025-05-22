@@ -66,7 +66,7 @@ def type_check(node: AstNode):
       return EId(span, sym.type, sec, name, sym)
     case EId():
       return map_tree(type_check, node)
-    case EUnOp(span, TUnresolved(), _, op, expr):
+    case EUnOp(span, TUnresolved(), sec, op, expr):
       nexpr = type_check(expr)
       type = type_eunop(op, span, nexpr)
       return EUnOp(span, type, sec, op, nexpr)

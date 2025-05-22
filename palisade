@@ -15,8 +15,10 @@ def cli():
 @click.option('--p-type-check', is_flag=True, help='print AST after type-checking')
 @click.option('--explicit-flows/--no-explicit-flows', default=True,
   help='perform explicit flows check')
+@click.option('--implicit-flows/--no-implicit-flows', default=True,
+  help='perform implicit flows check')
 def compile(file, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_labels,
-            p_type_check, explicit_flows):
+            p_type_check, explicit_flows, implicit_flows):
   '''Compile a given file and perform security checks'''
   from lib.utils import pprint
   from tokenizer import Tokenizer
@@ -53,6 +55,9 @@ def compile(file, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_labels,
   if explicit_flows:
     from security import check_explicit_flows
     check_explicit_flows(ast)
+  if implicit_flows:
+    from security import check_implicit_flows
+    check_implicit_flows(ast, False)
 
   ast = type_check(ast)
   if p_type_check: pprint(ast)

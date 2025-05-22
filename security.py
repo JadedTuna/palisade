@@ -1,6 +1,6 @@
 from lib.ast import *
 from lib.utils import *
-from traverse import walk_tree, map_tree, fold_tree, partial, traverse_tree
+from traverse import walk_tree, map_tree
 
 def assign_security_labels(node: AstNode):
   match node:
@@ -16,12 +16,10 @@ def assign_security_labels(node: AstNode):
       nrhs = assign_security_labels(rhs)
       sec = HIGH if nlhs.secure == HIGH or nrhs.secure == HIGH else LOW
       return EBinOp(span, type, sec, op, nlhs, nrhs)
-    case SIf(span, clause, body, else_stmt):
-      body.secure = clause.secure
-      return SIf(span, clause, body, else_stmt)
-    case SWhile(span, clause, body):
-      body.secure = clause.secure
-      return SWhile(span, clause, body)
+    case SIf() | SWhile():
+      nnode = map_tree(assign_security_labels, node)
+      nnode.body.secure = nnode.clause.secure
+      return nnode
     case SScope() | SVarDef() | SAssign() | SDebug() | File():
       return map_tree(assign_security_labels, node)
     case _:
@@ -41,3 +39,19 @@ def check_explicit_flows(node: AstNode):
         report_security_error('insecure explicit flow', span)
     case _:
       report_error('unexpected node while checking explicit flows', node.span)
+
+def check_implicit_flows(node: AstNode, pc: bool):
+  match node:
+    case SIf(_, clause, _, _):
+      pc = clause.secure or pc
+      walk_tree(check_implicit_flows, node, pc)
+    case SWhile(_, clause, _):
+      if(pc or clause.secure):
+        report_security_error('insecure implicit flow, while loop with a high guard', node.span)
+      walk_tree(check_implicit_flows, node, pc)
+    case SAssign(_, lhs, _):
+      if(pc and not lhs.secure):
+        report_security_error('insecure implicit flow inside high guard', node.span)
+      walk_tree(check_implicit_flows, node, pc)
+    case _:
+      walk_tree(check_implicit_flows, node, pc)
