@@ -42,12 +42,12 @@ def _traverse_tree(f, acc, node: AstNode):
       acc, nlhs = f(acc, lhs)
       acc, nrhs = f(acc, rhs)
       return (acc, EBinOp(span, type, sec, op, nlhs, nrhs))
-    case SScope(span, stmts, symtab):
+    case SScope(span, stmts, sec, symtab):
       nstmts = []
       for stmt in stmts:
         acc, nstmt = f(acc, stmt)
         nstmts.append(nstmt)
-      return (acc, SScope(span, nstmts, symtab))
+      return (acc, SScope(span, nstmts, sec, symtab))
     case SVarDef(span, sec, lhs, rhs):
       acc, nlhs = f(acc, lhs)
       acc, nrhs = f(acc, rhs)
