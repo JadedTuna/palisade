@@ -66,6 +66,12 @@ def _traverse_tree(f, acc, node: AstNode):
       acc, nclause = f(acc, clause)
       acc, nbody = f(acc, body)
       return (acc, SWhile(span, nclause, nbody))
+    case STryCatch(span, try_body, catch_body):
+      acc, ntry = f(acc, try_body)
+      acc, ncatch = f(acc, catch_body)
+      return (acc, STryCatch(span, ntry, ncatch))
+    case SThrow():
+      return (acc, node)
     case SDebug(span, expr):
       acc, nexpr = f(acc, expr)
       return (acc, SDebug(span, nexpr))

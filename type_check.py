@@ -57,7 +57,7 @@ def type_annotate(node: AstNode):
     case SDeclassify(span, type, sec, expr):
       nexpr = type_annotate(expr)
       return SDeclassify(span, type, sec, nexpr)
-    case SScope() | SAssign() | SIf() | SWhile() | SDebug() | File():
+    case SScope() | SAssign() | SIf() | SWhile() | STryCatch() | SThrow() | SDebug() | File():
       return map_tree(type_annotate, node)
     case _:
       report_error('unhandled node in type annotate', node.span)
@@ -108,7 +108,7 @@ def type_check(node: AstNode):
       nexpr = type_check(expr)
       ntype = nexpr.type
       return SDeclassify(span, ntype, sec, nexpr)
-    case SScope() | SVarDef() | SDebug() | File():
+    case SScope() | SVarDef() |  STryCatch() | SThrow() | SDebug() | File():
       return map_tree(type_check, node)
     case _:
       report_error('unhandled node in type check', node.span)

@@ -17,6 +17,10 @@ KEYWORDS = [
   'debug',
   'declassify',
 
+  'try',
+  'catch',
+  'throw',
+
   'true',
   'false',
 

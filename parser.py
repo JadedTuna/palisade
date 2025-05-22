@@ -164,6 +164,10 @@ class Parser:
       return self.parse_if()
     elif self.maybe('while'):
       return self.parse_while()
+    elif self.maybe('try'):
+      return self.parse_try_catch()
+    elif self.maybe('throw'):
+      return self.parse_throw()
     elif self.maybe('high', 'low'):
       return self.parse_vardef()
     elif self.maybe('debug'):
@@ -226,6 +230,20 @@ class Parser:
     tok = self.expect('declassify')
     expr = self.parse_expr()
     return SDeclassify(tok.span, TUnresolved(), LOW, expr)
+  
+  def parse_try_catch(self) -> STryCatch:
+    # try { stmts } catch { stmts }
+    tok = self.expect('try')
+    try_body = self.parse_scope()
+    self.expect('catch')
+    catch_body = self.parse_scope()
+    return STryCatch(tok.span, try_body, catch_body)
+    
+  def parse_throw(self) -> SThrow:
+    # throw;
+    tok = self.expect('throw')
+    self.expect(';')
+    return SThrow(tok.span)
 
   def parse_vardef(self) -> SVarDef:
     # (high|low) identifier = expr ;

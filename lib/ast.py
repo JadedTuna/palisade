@@ -118,6 +118,15 @@ class SWhile(Stmt):
   body: SScope
 
 @dataclass
+class STryCatch(Stmt):
+  tryBody: SScope
+  catchBody: SScope
+
+@dataclass
+class SThrow(Stmt):
+  pass
+
+@dataclass
 class SDebug(Stmt):
   expr: Expr
 
