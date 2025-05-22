@@ -60,7 +60,11 @@ class Expr(AstNode):
   secure: bool
 
 @dataclass
-class EId(Expr):
+class ELValue(Expr):
+  pass
+
+@dataclass
+class EId(ELValue):
   name: str
   sym: Symbol
 
@@ -71,6 +75,15 @@ class EInt(Expr):
 @dataclass
 class EBool(Expr):
   value: bool
+
+@dataclass
+class EArray(ELValue):
+  expr: EId
+  index: Expr
+
+@dataclass
+class EArrayLiteral(Expr):
+  values: list[Expr]
 
 @dataclass
 class EUnOp(Expr):

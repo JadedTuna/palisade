@@ -48,18 +48,16 @@ def type_annotate(node: AstNode):
       return EBool(span, TBool(), sec, v)
     case EUnOp() | EBinOp():
       return map_tree(type_annotate, node)
-    case SVarDef(span, sec, EId(_, _, _, _, sym) as lhs, rhs):
+    case SVarDef(span, sec, EId(_, _, _, _, sym) | EArray(_, _, _, EId(_, _, _, _, sym)) as lhs, rhs):
       nrhs = type_annotate(rhs)
       # type inference
       sym.type = nrhs.type
       nlhs = type_annotate(lhs)
       return SVarDef(span, sec, nlhs, nrhs)
-    case SDeclassify(span, type, sec, expr):
-      nexpr = type_annotate(expr)
-      return SDeclassify(span, type, sec, nexpr)
-    case SScope() | SAssign() | SIf() | SWhile() | STryCatch() | SThrow() | SDebug() | File():
+    case EArray() | EArrayLiteral() | SScope() | SAssign() | SIf() | SWhile() | STryCatch() | SThrow() | SDebug() | SDeclassify() | File():
       return map_tree(type_annotate, node)
     case _:
+      print(node)
       report_error('unhandled node in type annotate', node.span)
 
 def type_check(node: AstNode):
@@ -69,6 +67,16 @@ def type_check(node: AstNode):
       return EId(span, sym.type, sec, name, sym)
     case EId():
       return map_tree(type_check, node)
+    case EArray():
+      nnode =  map_tree(type_check, node)
+      nnode.type = nnode.expr.type
+      return nnode
+    case EArrayLiteral():
+      nnode = map_tree(type_check, node)
+      if not all(val.type == nnode.values[0].type for val in nnode.values):
+        report_error('values of different types in array literal', node)
+      nnode.type.of = nnode.values[0].type
+      return nnode
     case EUnOp(span, TUnresolved(), sec, op, expr):
       nexpr = type_check(expr)
       type = type_eunop(op, span, nexpr)
@@ -82,7 +90,7 @@ def type_check(node: AstNode):
       return map_tree(type_check, node)
     case SAssign(span, _, _):
       nnode = map_tree(type_check, node)
-      if nnode.lhs.type != nnode.rhs.type:
+      if nnode.lhs.type != nnode.rhs.type and (isinstance(nnode.lhs.type, EArray) and nnode.lhs.type.of != nnode.rhs.type):
         report_error('type mismatch in assignment', span)
       return nnode
     case SVarDef(span, sec, EId(_, _, _, _, sym) as lhs, rhs):

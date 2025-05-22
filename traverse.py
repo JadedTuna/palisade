@@ -36,6 +36,16 @@ def _traverse_tree(f, acc, node: AstNode):
   match node:
     case EId() | EInt() | EBool():
       return (acc, node)
+    case EArray(span, type, sec, expr, index):
+      acc, nexpr = f(acc, expr)
+      acc, nindex = f(acc, index)
+      return (acc, EArray(span, type, sec, nexpr, nindex))
+    case EArrayLiteral(span, type, sec, values):
+      nvalues = []
+      for expr in values: 
+        acc, nexpr = f(acc, expr)
+        nvalues.append(nexpr)
+      return (acc, EArrayLiteral(span, type, sec, nvalues))
     case EUnOp(span, type, sec, op, expr):
       acc, nexpr = f(acc, expr)
       return (acc, EUnOp(span, type, sec, op, nexpr))

@@ -42,7 +42,7 @@ def compile(file, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_labels,
 
   ast = symbolize(ast, ast.symtab)
   if p_symbolize: pprint(ast)
-
+  
   ast = type_annotate(ast)
   if p_type_annot: pprint(ast)
 

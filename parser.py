@@ -1,5 +1,5 @@
 from lib.ast import *
-from lib.types import TUnresolved
+from lib.types import TUnresolved, TArray
 from lib.utils import report_error
 
 PRECTABLE_ARITH      = 0
@@ -102,6 +102,8 @@ class Parser:
   def parse_expr(self):
     if(self.maybe('declassify')):
       return self.parse_declassify()
+    if(self.maybe('[')):
+      return self.parse_array_literal()
     return self.parse_expr_prec(None)
 
   def parse_expr_prec(self, prev_op):
@@ -138,6 +140,15 @@ class Parser:
     else:
       report_error('unexpected token while parsing expression', self.token().span)
 
+  def parse_lvalue(self) -> ELValue:
+    eid = self.parse_identifier()
+    if(self.maybe('[')):
+      self.expect('[')
+      index = self.parse_expr()
+      self.expect(']')
+      return EArray(eid.span, TUnresolved(), HIGH, eid, index)
+    return eid
+
   def parse_identifier(self) -> EId:
     tok = self.expect('identifier')
     return EId(tok.span, TUnresolved(), HIGH, tok.value, SYMBOL_UNRESOLVED)
@@ -156,6 +167,18 @@ class Parser:
   def parse_boolean(self) -> EBool:
     tok = self.expect('true', 'false')
     return EBool(tok.span, TUnresolved(), LOW, tok.type == 'true')
+  
+  def parse_array_literal(self) -> EArrayLiteral:
+    tok = self.expect('[')
+    values = []
+    while True:
+      values.append(self.parse_expr())
+      if self.maybe(']'):
+        self.expect(']')
+        break
+      self.expect(',')
+    return EArrayLiteral(tok.span, TArray(TUnresolved(), len(values)), LOW, values)
+
 
   def parse_stmt(self) -> Stmt:
     if self.maybe('{'):
@@ -175,7 +198,6 @@ class Parser:
     elif self.maybe('identifier'):
       return self.parse_assign()
     # TODO: function calls
-    # TODO: skip
     else:
       report_error('unexpected token while parsing statement', self.token().span)
 
@@ -189,7 +211,7 @@ class Parser:
 
   def parse_assign(self) -> SAssign:
     # identifier = expr;
-    lhs = self.parse_identifier()
+    lhs = self.parse_lvalue()
     tok = self.expect('=')
     rhs = self.parse_expr()
     self.expect(';')
@@ -249,8 +271,19 @@ class Parser:
     # (high|low) identifier = expr ;
     sectok = self.expect('high', 'low')
     secure = sectok.type == 'high'
-    lhs = self.parse_identifier()
+    lhs = self.parse_lvalue()
     tok = self.expect('=')
     rhs = self.parse_expr()
+    if isinstance(lhs, EArray):
+      if not isinstance(lhs.index, EInt):
+        report_error('only integer literals allowed when specifying array length', lhs.expr.span)
+      if lhs.index.value <= 0:
+        report_error('array length must be greater than 0', lhs.expr.span)
+      if not isinstance(rhs, EArrayLiteral):
+        report_error('no array literal provided while defining array', rhs.span)
+      if lhs.index.value > len(rhs.values):
+        report_error('the array literal is to short', rhs.span)
+      if lhs.index.value < len(rhs.values):
+        report_error('the array literal is to long', rhs.span)
     self.expect(';')
     return SVarDef(tok.span, secure, lhs, rhs)

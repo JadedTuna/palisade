@@ -8,6 +8,9 @@ def assign_security_labels(node: AstNode):
       return map_tree(assign_security_labels, node)
     case EId(span, type, _, name, sym):
       return EId(span, type, sym.secure, name, sym)
+    case EArray(span, type, _, expr, index):
+      nexpr = assign_security_labels(expr)
+      return EArray(span, type, nexpr.sym.secure, nexpr, index)
     case EUnOp(span, type, _, op, expr):
       nexpr = assign_security_labels(expr)
       return EUnOp(span, type, nexpr.secure, op, nexpr)
@@ -23,7 +26,7 @@ def assign_security_labels(node: AstNode):
     case SDeclassify(span, type, _, expr):
       nexpr = assign_security_labels(expr)
       return SDeclassify(span, type, LOW, nexpr)
-    case SScope() | SVarDef() | SAssign() | STryCatch() | SThrow() | SDebug() | File():
+    case EArray() | EArrayLiteral() | SScope() | SVarDef() | SAssign() | STryCatch() | SThrow() | SDebug() | File():
       return map_tree(assign_security_labels, node)
     case _:
       report_error('unhandled node while assigning security labels', node.span)

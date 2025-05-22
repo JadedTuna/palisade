@@ -13,7 +13,7 @@ def symbolize(node: AstNode, symtab: SymTab):
       symtab_.parent = symtab
       nstmts = [symbolize(stmt, symtab_) for stmt in stmts]
       return SScope(span, nstmts, sec, symtab_)
-    case SVarDef(span, sec, EId(_, _, _, name, _) as lhs, rhs):
+    case SVarDef(span, sec, EId(_, _, _, name, _) | EArray(_, _, _, EId(_, _, _, name, _)) as lhs, rhs):
       nrhs = symbolize(rhs, symtab)
       sym = symtab.lookup(name)
       if sym is not None:

@@ -15,3 +15,8 @@ class TInt(Type):
 @dataclass
 class TBool(Type):
   pass
+
+@dataclass
+class TArray(Type):
+  of: Type
+  length: int
