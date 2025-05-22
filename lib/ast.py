@@ -90,6 +90,7 @@ class Stmt(AstNode):
 @dataclass
 class SScope(Stmt):
   stmts: list[Stmt]
+  secure: bool
   symtab: SymTab = field(repr=False)
 
 @dataclass
