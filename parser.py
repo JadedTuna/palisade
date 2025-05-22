@@ -179,7 +179,7 @@ class Parser:
     while not self.maybe('}'):
       stmts.append(self.parse_stmt())
     self.expect('}')
-    return SScope(tok.span, stmts, SymTab(None, {}))
+    return SScope(tok.span, stmts, HIGH, SymTab(None, {}))
 
   def parse_assign(self) -> SAssign:
     # identifier = expr;
@@ -195,10 +195,10 @@ class Parser:
     self.expect('(')
     clause = self.parse_expr()
     self.expect(')')
-    body = self.parse_stmt()
+    body = self.parse_scope()
     if self.maybe('else'):
       self.expect('else')
-      else_stmt = self.parse_stmt()
+      else_stmt = self.parse_scope()
     else:
       else_stmt = None
     return SIf(tok.span, clause, body, else_stmt)
@@ -209,7 +209,7 @@ class Parser:
     self.expect('(')
     clause = self.parse_expr()
     self.expect(')')
-    body = self.parse_stmt()
+    body = self.parse_scope()
     return SWhile(tok.span, clause, body)
 
   def parse_debug(self) -> SDebug:
