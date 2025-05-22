@@ -16,7 +16,13 @@ def assign_security_labels(node: AstNode):
       nrhs = assign_security_labels(rhs)
       sec = HIGH if nlhs.secure == HIGH or nrhs.secure == HIGH else LOW
       return EBinOp(span, type, sec, op, nlhs, nrhs)
-    case SScope() | SVarDef() | SAssign() | SIf() | SWhile() | SDebug() | File():
+    case SIf(span, clause, body, else_stmt):
+      body.secure = clause.secure
+      return SIf(span, clause, body, else_stmt)
+    case SWhile(span, clause, body):
+      body.secure = clause.secure
+      return SWhile(span, clause, body)
+    case SScope() | SVarDef() | SAssign() | SDebug() | File():
       return map_tree(assign_security_labels, node)
     case _:
       report_error('unhandled node while assigning security labels', node.span)
