@@ -24,12 +24,13 @@ def walk_tree(f, node: AstNode, *args):
 
 def traverse_tree(f, acc, node: AstNode, *args):
   '''Traverse a tree, updating `acc` and building a new tree.'''
-  f2 = lambda acc1, n: f(acc1, n, *args)
+  f2 = lambda acc_, n: f(acc_, n, *args)
   return _traverse_tree(f2, acc, node)
 
 def fold_tree(f, acc, node: AstNode, *args):
   '''Map `f` over the each node and collect the results in `acc`.'''
-  return traverse_tree(f, acc, node, *args)[0]
+  f2 = lambda acc_, n: (f(acc_, n, *args), n)
+  return traverse_tree(f2, acc, node, *args)[0]
 
 def _traverse_tree(f, acc, node: AstNode):
   match node:

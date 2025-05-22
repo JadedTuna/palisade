@@ -52,7 +52,7 @@ def compile(file, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_labels,
 
   if explicit_flows:
     from security import check_explicit_flows
-    ast = check_explicit_flows(ast)
+    check_explicit_flows(ast)
 
   ast = type_check(ast)
   if p_type_check: pprint(ast)
