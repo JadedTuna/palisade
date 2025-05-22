@@ -9,10 +9,10 @@ def symbolize(node: AstNode, symtab: SymTab):
       if sym is None:
         report_error('use of undefined variable', span)
       return EId(span, type, sec, name, sym)
-    case SScope(span, stmts, symtab_):
+    case SScope(span, stmts, sec, symtab_):
       symtab_.parent = symtab
       nstmts = [symbolize(stmt, symtab) for stmt in stmts]
-      return SScope(span, nstmts, symtab_)
+      return SScope(span, nstmts, sec, symtab_)
     case SVarDef(span, sec, EId(_, _, _, name, _) as lhs, rhs):
       nrhs = symbolize(rhs, symtab)
       sym = symtab.lookup(name)
