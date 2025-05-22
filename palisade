@@ -27,6 +27,7 @@ def compile(file, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_labels,
   from type_check import type_annotate, type_check
   from security import assign_security_labels
   from debug import debug_ast
+  from lib.ast import HIGH, LOW
 
   with open(file) as fp:
     SRC = fp.read()
@@ -57,7 +58,7 @@ def compile(file, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_labels,
     check_explicit_flows(ast)
   if implicit_flows:
     from security import check_implicit_flows
-    check_implicit_flows(ast, False)
+    check_implicit_flows(ast, LOW)
 
   ast = type_check(ast)
   if p_type_check: pprint(ast)

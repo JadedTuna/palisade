@@ -43,14 +43,14 @@ def check_explicit_flows(node: AstNode):
 def check_implicit_flows(node: AstNode, pc: bool):
   match node:
     case SIf(_, clause, _, _):
-      pc = clause.secure or pc
+      pc = clause.secure == HIGH or pc == HIGH
       walk_tree(check_implicit_flows, node, pc)
     case SWhile(_, clause, _):
-      if(pc or clause.secure):
+      if(pc == HIGH or clause.secure == HIGH):
         report_security_error('insecure implicit flow, while loop with a high guard', node.span)
       walk_tree(check_implicit_flows, node, pc)
     case SAssign(_, lhs, _):
-      if(pc and not lhs.secure):
+      if(pc == HIGH and lhs.secure == LOW):
         report_security_error('insecure implicit flow inside high guard', node.span)
       walk_tree(check_implicit_flows, node, pc)
     case _:
