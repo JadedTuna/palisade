@@ -9,6 +9,8 @@ def blue(s): return color(s, 34)
 def purple(s): return color(s, 35)
 def cyan(s): return color(s, 36)
 def yellow(s): return color(s, 93)
+def green(s): return color(s, 32)
+def white(s): return color(s, 37)
 
 def report(level: str, msg: str, span: Span, colorfn, preamble_lines: int = 2,
            epilogue: str|None = None, epilogue_pp = None):

@@ -48,7 +48,7 @@ def check_explicit_flows(node: AstNode):
 
 def check_implicit_flows(node: AstNode, pc: bool):
   match node:
-    case EArray(span, _, sec, _, index):
+    case EArray(_, _, sec, _, index):
        if sec == LOW and index.secure == HIGH:
          report_security_error("can't index with a high value in a low array", index.span)
        walk_tree(check_implicit_flows, node, pc)
