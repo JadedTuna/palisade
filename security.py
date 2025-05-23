@@ -4,7 +4,7 @@ from traverse import walk_tree, map_tree
 
 def assign_security_labels(node: AstNode):
   match node:
-    case EInt() | EBool() | EFnParam():
+    case EInt() | EBool() | EFnParam() | EGlobal():
       return map_tree(assign_security_labels, node)
     case EId(span, type, _, name, sym):
       return EId(span, type, sym.secure, name, sym)

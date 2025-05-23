@@ -101,9 +101,10 @@ class Parser:
 
   def parse(self) -> File:
     stmts = []
+    inputs, outputs = self.parse_globals()
     while not self.maybe('eof'):
       stmts.append(self.parse_stmt())
-    return File(FAKE_SPAN, stmts, SymTab(None, {}))
+    return File(FAKE_SPAN, stmts, SymTab(None, {}), inputs, outputs)
 
   def parse_expr(self):
     if(self.maybe('declassify')):
@@ -222,11 +223,11 @@ class Parser:
       return self.parse_try_catch()
     elif self.maybe('throw'):
       return self.parse_throw()
-    elif self.maybe('high', 'low'):
-      return self.parse_vardef()
     elif self.maybe('debug'):
       return self.parse_debug()
     elif self.maybe('identifier'):
+      if self.peek(1).type == ':=':
+        return self.parse_vardef()
       return self.parse_assign()
     # TODO: function calls
     else:
@@ -328,10 +329,9 @@ class Parser:
     return SThrow(tok.span)
 
   def parse_vardef(self) -> SVarDef:
-    # (high|low) identifier = expr ;
-    seclabel = self.parse_seclabel()
+    # identifier = expr ;
     lhs = self.parse_lvalue()
-    tok = self.expect('=')
+    tok = self.expect(':=')
     rhs = self.parse_expr()
     if isinstance(lhs, EArray):
       if not isinstance(lhs.index, EInt):
@@ -345,4 +345,29 @@ class Parser:
       if lhs.index.value < len(rhs.values):
         report_error('the array literal is to long', rhs.span)
     self.expect(';')
-    return SVarDef(tok.span, seclabel, lhs, rhs)
+    return SVarDef(tok.span, rhs.secure, lhs, rhs)
+  
+  def parse_global_variable(self) -> dict[str, tuple[EGlobal, bool]]:
+    globals = {}
+    while True:
+      pseclabel = self.parse_seclabel()
+      # TODO: lvalue?
+      pname = self.parse_identifier()
+      self.expect(':')
+      ptype = self.parse_type()
+      globals[pname.name] = (EGlobal(pname.span, ptype, pseclabel, pname.name, SYMBOL_UNRESOLVED), pseclabel)
+      if self.maybe('}'): break
+      self.expect(',')
+    return globals
+
+  def parse_globals(self):
+    self.expect('in')
+    self.expect('{')
+    ins = self.parse_global_variable()
+    self.expect('}')
+    # TODO: lvalue?
+    self.expect('out')
+    self.expect('{')
+    outs = self.parse_global_variable()
+    self.expect('}')
+    return (ins, outs)

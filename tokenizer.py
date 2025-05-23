@@ -22,6 +22,9 @@ KEYWORDS = [
   'catch',
   'throw',
 
+  'in',
+  'out',
+
   'true',
   'false',
 
@@ -80,7 +83,7 @@ class Tokenizer:
     token = Token(type, self.src[self.idx:self.idx+1], span)
     self.tokens.append(token)
     return token
-
+  
   def tokenize(self):
     self.state = 'default'
     while (c := self.getc()) is not None:
@@ -98,6 +101,9 @@ class Tokenizer:
         elif c in DIGITS:
           self.token_start('integer')
         # single-char/dual-char operators
+        elif c == ':':
+          self.token_start(':')
+          self.advance()
         elif c == '=':
           self.token_start('=')
           self.advance()
@@ -183,6 +189,12 @@ class Tokenizer:
           self.token_end()
       # end integer handling
       # start single-char/dual-char operators
+      elif self.state == ':':
+        if c == '=':
+          self.advance()
+          self.token_end(':=')
+        else:
+          self.token_end()
       elif self.state == '=':
         if c == '=':
           self.advance()

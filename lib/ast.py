@@ -166,6 +166,13 @@ class SDeclassify(Expr):
   expr: Expr
 
 @dataclass
+class EGlobal(Expr):
+  name: str
+  sym: Symbol
+
+@dataclass
 class File(AstNode):
   stmts: list[Stmt]
   symtab: SymTab = field(repr=False)
+  inputs: dict[str, tuple[EGlobal, bool]]
+  outputs: dict[str, tuple[EGlobal, bool]]

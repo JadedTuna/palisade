@@ -34,7 +34,7 @@ def fold_tree(f, acc, node: AstNode, *args):
 
 def _traverse_tree(f, acc, node: AstNode):
   match node:
-    case EId() | EInt() | EBool() | EFnParam():
+    case EId() | EInt() | EBool() | EFnParam() | EGlobal():
       return (acc, node)
     case EArray(span, type, sec, expr, index):
       acc, nexpr = f(acc, expr)
@@ -103,11 +103,19 @@ def _traverse_tree(f, acc, node: AstNode):
     case SDeclassify(span, type, sec, expr):
       acc, nexpr = f(acc, expr)
       return (acc, SDeclassify(span, type, sec, nexpr))
-    case File(span, stmts, symtab):
+    case File(span, stmts, symtab, ins, outs):
       nstmts = []
+      nins = {}
+      nouts = {}
+      for name, val in ins.items(): 
+        acc, nin = f(acc, val[0])
+        nins[name] = (nin, val[1])
+      for name, val in outs.items():
+        acc, nout = f(acc, val[0])
+        nouts[name] = (nout, val[1])
       for stmt in stmts:
         acc, nstmt = f(acc, stmt)
         nstmts.append(nstmt)
-      return (acc, File(span, nstmts, symtab))
+      return (acc, File(span, nstmts, symtab, nins, nouts))
     case _:
       report_error('unhandled node in traverse', node.span)

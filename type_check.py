@@ -44,7 +44,7 @@ def type_annotate(node: AstNode):
       return EInt(span, TInt(), sec, v)
     case EBool(span, TUnresolved(), sec, v):
       return EBool(span, TBool(), sec, v)
-    case EFnParam(type=type, sym=sym):
+    case EFnParam(type=type, sym=sym) | EGlobal(type, sym):
       sym.type = type
       return node
     case EArray(span, _, sec, expr, index):
@@ -145,7 +145,7 @@ def type_check(node: AstNode):
       nexpr = type_check(expr)
       ntype = nexpr.type
       return SDeclassify(span, ntype, sec, nexpr)
-    case SScope() | SVarDef() |  STryCatch() | SThrow() | SDebug() | File():
+    case SScope() | SVarDef() |  STryCatch() | SThrow() | SDebug() | File() | EFnParam():
       return map_tree(type_check, node)
     case _:
       report_error('unhandled node in type check', node.span)
