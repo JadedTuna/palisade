@@ -1,5 +1,5 @@
 import string
-from lib.ast import Span, Token
+from lib.ast import Span, Token, FAKE_SPAN
 from lib.utils import report_error
 
 WHITESPACE = string.whitespace
@@ -71,10 +71,11 @@ class Tokenizer:
     self.state = 'default'
     return token
 
-  def token_onec(self, type):
+  def token_onec(self, type) -> Token:
     span = Span(self.idx, self.idx+1, self.lnum, self.cnum, self.cnum+1, self.src)
     token = Token(type, self.src[self.idx:self.idx+1], span)
     self.tokens.append(token)
+    return token
 
   def tokenize(self):
     self.state = 'default'
@@ -119,7 +120,8 @@ class Tokenizer:
           self.token_onec(c)
           self.advance()
         else:
-          raise RuntimeError(c)
+          tok = self.token_onec(c)
+          report_error('unhandled character in tokenize', tok.span)
       elif self.state == 'identifier':
         if c in ID_BODY:
           self.advance()
@@ -234,4 +236,4 @@ class Tokenizer:
         else:
           self.advance()
       else:
-        raise RuntimeError(self.state)
+        report_error(f'invalid state in tokenize: {self.state}', FAKE_SPAN)
