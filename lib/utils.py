@@ -58,6 +58,9 @@ def report_security_error(msg: str, span: Span) -> NoReturn:
   report('security error', msg, span, purple)
   exit(1)
 
+def report_security_error_cont(msg: str, span: Span):
+  report('security error', msg, span, purple)
+
 def report_note(msg: str, span: Span):
   report('note', msg, span, blue)
 

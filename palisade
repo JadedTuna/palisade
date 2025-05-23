@@ -86,14 +86,14 @@ def test(v):
 def compile(file, color, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_labels,
             p_type_check, explicit_flows, implicit_flows):
   '''Compile a given file and perform security checks'''
-  from lib.utils import pprint
+  from lib.utils import pprint, report_security_error_cont, report_note, green, red, yellow
   from tokenizer import Tokenizer
   from parser import Parser
   from symbolize import symbolize
   from type_check import type_annotate, type_check
   from security import assign_security_labels
   from debug import debug_ast
-  from lib.ast import HIGH, LOW
+  from lib.ast import HIGH, LOW, EGlobal
 
   if not color:
     # monkeypatch style to disable color
@@ -130,8 +130,20 @@ def compile(file, color, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_lab
     from security import check_implicit_flows
     check_implicit_flows(ast, LOW)
 
-  ast = type_check(ast)
+  #ast = type_check(ast)
   if p_type_check: pprint(ast)
+
+  # check flow analysis results
+  count = 1
+  for out, org_sec in ast.outputs.values():
+    if(out.secure != org_sec):
+      print(red(f'> output {count}.'))
+      report_security_error_cont(f"The ouput variable {red(out.name)} should be {yellow(org_sec)} - but was {yellow(out.secure)}", out.span)
+    else:
+      print(green(f'> output {count}.'))
+      print(f"The ouput variable {green(out.name)} had the expected security level")
+    print()
+    count += 1
 
 if __name__ == '__main__':
   cli()
