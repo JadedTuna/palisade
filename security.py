@@ -4,13 +4,18 @@ from traverse import walk_tree, map_tree
 
 def assign_security_labels(node: AstNode):
   match node:
-    case EInt() | EBool() | EArray() | EArrayLiteral() | EFnParam():
+    case EInt() | EBool() | EFnParam():
       return map_tree(assign_security_labels, node)
     case EId(span, type, _, name, sym):
       return EId(span, type, sym.secure, name, sym)
     case EArray(span, type, _, expr, index):
-      nexpr = assign_security_labels(expr)
-      return EArray(span, type, nexpr.sym.secure, nexpr, index)
+      nnode = map_tree(assign_security_labels, node)
+      nnode.secure = nnode.expr.sym.secure
+      return nnode
+    case EArrayLiteral(span, type, _, values):
+      nnode = map_tree(assign_security_labels, node)
+      nnode.secure = any([v.secure for v in nnode.values])
+      return nnode
     case EUnOp(span, type, _, op, expr):
       nexpr = assign_security_labels(expr)
       return EUnOp(span, type, nexpr.secure, op, nexpr)

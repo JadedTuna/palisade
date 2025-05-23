@@ -7,7 +7,6 @@ from parser import BINOPS, UNOPS, PRECTABLE_BOOLEAN, PRECTABLE_COMPARISON
 
 def type_eunop(op: str, span: Span, expr: Expr) -> Type:
   opkind = UNOPS[op]
-  if isinstance(expr, EArray): expr.type = expr.type.of
   match expr.type:
     case TInt() if opkind == PRECTABLE_BOOLEAN:
       report_error('cannot use boolean operators with integers', span)
@@ -22,8 +21,6 @@ def type_eunop(op: str, span: Span, expr: Expr) -> Type:
 
 def type_ebinop(op: str, span: Span, lhs: Expr, rhs: Expr) -> Type:
   opkind = BINOPS[op][0]
-  if isinstance(lhs, EArray): lhs.type = lhs.type.of
-  if isinstance(rhs, EArray): rhs.type = rhs.type.of
   match (lhs.type, rhs.type):
     case (TInt(), TInt()) if opkind == PRECTABLE_BOOLEAN:
       report_error('cannot use boolean operators with integers', span)
@@ -50,9 +47,13 @@ def type_annotate(node: AstNode):
     case EFnParam(type=type, sym=sym):
       sym.type = type
       return node
-    case EUnOp() | EBinOp() | ECall():
+    case EArray(span, _, sec, expr, index):
+      nnode = map_tree(type_annotate, node)
+      nnode.type = nnode.expr.type.of
+      return nnode
+    case EUnOp() | EBinOp() | EArrayLiteral() | ECall():
       return map_tree(type_annotate, node)
-    case SVarDef(span, sec, EId(_, _, _, _, sym) | EArray(_, _, _, EId(_, _, _, _, sym)) as lhs, rhs):
+    case SVarDef(span, sec, (EId(sym=sym) | EArray(expr=EId(sym=sym))) as lhs, rhs):
       nrhs = type_annotate(rhs)
       # type inference
       sym.type = nrhs.type
@@ -68,7 +69,7 @@ def type_annotate(node: AstNode):
       # annotate body after connecting type to symbol, to handle recursive calls
       nbody = type_annotate(body)
       return SFnDef(span, nlhs, nparams, reseclabel, retype, nbody)
-    case EArray() | EArrayLiteral() | SScope() | SAssign() | SIf() | SWhile() | STryCatch() | SThrow() | SDebug() | SDeclassify() | File():
+    case SScope() | SAssign() | SIf() | SWhile() | STryCatch() | SThrow() | SDebug() | SDeclassify() | File():
       return map_tree(type_annotate, node)
     case _:
       report_error('unhandled node in type annotate', node.span)
@@ -82,7 +83,7 @@ def type_check(node: AstNode):
       return map_tree(type_check, node)
     case EArray():
       nnode =  map_tree(type_check, node)
-      nnode.type = nnode.expr.type
+      nnode.type = nnode.expr.type.of
       if not isinstance(nnode.index.type, TInt):
         report_error('array index must be an int', nnode.index.span)
       return nnode
@@ -115,14 +116,10 @@ def type_check(node: AstNode):
       return map_tree(type_check, node)
     case SAssign(span, _, _):
       nnode = map_tree(type_check, node)
-      lhs_type = nnode.lhs.type
-      if isinstance(nnode.lhs, EArray): lhs_type = nnode.lhs.type.of
-      rhs_type = nnode.rhs.type
-      if isinstance(nnode.rhs, EArray): rhs_type = nnode.rhs.type.of
-      if lhs_type != rhs_type:
+      if nnode.lhs.type != nnode.rhs.type:
         report_error('type mismatch in assignment', span)
       return nnode
-    case SVarDef(span, sec, EId(_, _, _, _, sym) as lhs, rhs):
+    case SVarDef(span, sec, (EId(sym=sym) | EArray(expr=EId(sym=sym))) as lhs, rhs):
       nrhs = type_check(rhs)
       # type inference
       sym.type = nrhs.type

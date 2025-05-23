@@ -119,7 +119,7 @@ class SScope(Stmt):
 @dataclass
 class SVarDef(Stmt):
   secure: bool
-  lhs: EId
+  lhs: ELValue
   rhs: Expr
 
 @dataclass
@@ -132,7 +132,7 @@ class SFnDef(Stmt):
 
 @dataclass
 class SAssign(Stmt):
-  lhs: EId
+  lhs: ELValue
   rhs: Expr
 
 @dataclass
