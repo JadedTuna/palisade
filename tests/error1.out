@@ -1,0 +1,5 @@
+[1;31merror: [0mtype mismatch
+   1 | high num = 20;
+   2 | high bool = false;
+   3 | if(num [1;31m>=[0m bool) {
+       [1;31m~~~~~~~[0m[1;31m^^[0m

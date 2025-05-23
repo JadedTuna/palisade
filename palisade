@@ -6,6 +6,12 @@ def cli():
   pass
 
 @cli.command()
+def test():
+  '''Run tests on the compiler'''
+  from test import run_tests
+  run_tests()
+
+@cli.command()
 @click.argument('file')
 @click.option('--p-tokens', is_flag=True, help='print tokens')
 @click.option('--p-parse', is_flag=True, help='print AST after parsing')
