@@ -7,6 +7,7 @@ from parser import BINOPS, UNOPS, PRECTABLE_BOOLEAN, PRECTABLE_COMPARISON
 
 def type_eunop(op: str, span: Span, expr: Expr) -> Type:
   opkind = UNOPS[op]
+  if isinstance(expr, EArray): expr.type = expr.type.of
   match expr.type:
     case TInt() if opkind == PRECTABLE_BOOLEAN:
       report_error('cannot use boolean operators with integers', span)
@@ -21,6 +22,8 @@ def type_eunop(op: str, span: Span, expr: Expr) -> Type:
 
 def type_ebinop(op: str, span: Span, lhs: Expr, rhs: Expr) -> Type:
   opkind = BINOPS[op][0]
+  if isinstance(lhs, EArray): lhs.type = lhs.type.of
+  if isinstance(rhs, EArray): rhs.type = rhs.type.of
   match (lhs.type, rhs.type):
     case (TInt(), TInt()) if opkind == PRECTABLE_BOOLEAN:
       report_error('cannot use boolean operators with integers', span)
@@ -34,8 +37,6 @@ def type_ebinop(op: str, span: Span, lhs: Expr, rhs: Expr) -> Type:
       report_error('can only use boolean operators with booleans', span)
     case _:
       report_error_cont('type mismatch', span)
-      debug_ast(SDebug(span, lhs))
-      debug_ast(SDebug(span, rhs))
       exit(1)
 
 def type_annotate(node: AstNode):
@@ -57,7 +58,6 @@ def type_annotate(node: AstNode):
     case EArray() | EArrayLiteral() | SScope() | SAssign() | SIf() | SWhile() | STryCatch() | SThrow() | SDebug() | SDeclassify() | File():
       return map_tree(type_annotate, node)
     case _:
-      print(node)
       report_error('unhandled node in type annotate', node.span)
 
 def type_check(node: AstNode):
@@ -70,7 +70,7 @@ def type_check(node: AstNode):
     case EArray():
       nnode =  map_tree(type_check, node)
       nnode.type = nnode.expr.type
-      if not isinstance(nnode.index, EInt):
+      if not isinstance(nnode.index.type, TInt):
         report_error('array index must be an int', nnode.index.span)
       return nnode
     case EArrayLiteral():
@@ -92,10 +92,12 @@ def type_check(node: AstNode):
       return map_tree(type_check, node)
     case SAssign(span, _, _):
       nnode = map_tree(type_check, node)
-      if nnode.lhs.type != nnode.rhs.type and not isinstance(nnode.lhs, EArray):
+      lhs_type = nnode.lhs.type
+      if isinstance(nnode.lhs, EArray): lhs_type = nnode.lhs.type.of
+      rhs_type = nnode.rhs.type
+      if isinstance(nnode.rhs, EArray): rhs_type = nnode.rhs.type.of
+      if lhs_type != rhs_type:
         report_error('type mismatch in assignment', span)
-      if isinstance(nnode.lhs, EArray) and nnode.lhs.type.of != nnode.rhs.type:
-        report_error('type mismatch in array assignment', span)
       return nnode
     case SVarDef(span, sec, EId(_, _, _, _, sym) as lhs, rhs):
       nrhs = type_check(rhs)
@@ -112,7 +114,7 @@ def type_check(node: AstNode):
       return SIf(span, nclause, nbody, nelse_stmt)
     case SWhile(span, clause, body):
       nclause = type_check(clause)
-      if not isinstance(clause.type, TBool):
+      if not isinstance(nclause.type, TBool):
         report_error('while-statement clause should be a bool', span)
       nbody = type_check(body)
       return SWhile(span, nclause, nbody)

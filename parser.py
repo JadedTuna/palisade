@@ -124,7 +124,7 @@ class Parser:
 
   def parse_term(self):
     if self.maybe('identifier'):
-      return self.parse_identifier()
+      return self.parse_lvalue()
     elif self.maybe('integer', 'integer_hex', 'integer_bin', 'integer_oct'):
       return self.parse_integer()
     elif self.maybe('true', 'false'):
