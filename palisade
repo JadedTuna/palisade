@@ -1,18 +1,78 @@
 #!/usr/bin/env python3
 import click
+TEST_ORDER = [
+  'basic1',
+  'basic2',
+  'complex1',
+  'error1',
+  'explicit1',
+  'explicit2',
+  'implicit_if1',
+  'implicit_if2',
+  'implicit_while',
+  'implicit_throw',
+  'implicit_array',
+  'functions1'
+]
 
 @click.group()
 def cli():
   pass
 
 @cli.command()
-def test():
+@click.option('-v', is_flag=True, help='verbose output')
+def test(v):
   '''Run tests on the compiler'''
-  from test import run_tests
-  run_tests()
+  import subprocess
+  from lib.utils import blue, yellow, green, red, cyan
+  from pathlib import Path
+
+  fs_files = {f.stem for f in Path('tests/').glob('*.pls')}
+  missing_from_order = fs_files - set(TEST_ORDER)
+  missing_from_fs = set(TEST_ORDER) - fs_files
+  if missing_from_order:
+    print(f'The following test files do not have order specified and will not be run')
+    for file in sorted(missing_from_order):
+      print(f'- {file}')
+    print()
+  if missing_from_fs:
+    print(f'The following test files do not exist on the filesystem')
+    for file in sorted(missing_from_fs):
+      print(f'- {file}')
+    print()
+    exit(1)
+
+  indent = ' '*4
+  border_length = 80
+  idx = 1
+  for test in TEST_ORDER:
+    start_border_length = border_length-len(str(idx))
+    end_border_length = start_border_length+len(str(idx))+2
+    with open(f'./tests/{test}.pls') as f:
+        src = f.read()
+    actual = subprocess.run(['./palisade', 'compile', f'./tests/{test}.pls'], capture_output=True).stdout.decode()
+    with open(f'./tests/{test}.out') as f:
+        expected = f.read()
+    success = expected == actual
+    if v or not success:
+      if not v: print() # start newline after the dots
+      if v: print(f'{blue('---\n---\n---')}')
+      print(f'{blue('--- running test')}', yellow(idx), blue('-'*start_border_length), '\n')
+      print(cyan(' - test code -'), f'\n{indent}{src.replace('\n', f'\n{indent}')}', '\n')
+      print(cyan(' - expected output -'), f'\n{indent}', expected.replace('\n', f'\n{indent}'))
+      print(cyan(' - actual output -'), f'\n{indent}', actual.replace('\n', f'\n{indent}'))
+      print(blue('---'), green('test passed') if success else red('test failed'), blue('-'*end_border_length))
+      # print(repr(expected))
+      # print(repr(actual))
+    else:
+      print(green('.'), end='', flush=True)
+    idx += 1
+  print()
 
 @cli.command()
 @click.argument('file')
+@click.option('--color/--no-color', default=True,
+  help='colorize output')
 @click.option('--p-tokens', is_flag=True, help='print tokens')
 @click.option('--p-parse', is_flag=True, help='print AST after parsing')
 @click.option('--p-symbolize', is_flag=True, help='print AST after symbolize')
@@ -23,7 +83,7 @@ def test():
   help='perform explicit flows check')
 @click.option('--implicit-flows/--no-implicit-flows', default=True,
   help='perform implicit flows check')
-def compile(file, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_labels,
+def compile(file, color, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_labels,
             p_type_check, explicit_flows, implicit_flows):
   '''Compile a given file and perform security checks'''
   from lib.utils import pprint
@@ -34,6 +94,10 @@ def compile(file, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_labels,
   from security import assign_security_labels
   from debug import debug_ast
   from lib.ast import HIGH, LOW
+
+  if not color:
+    # monkeypatch style to disable color
+    click.style = lambda s, *args, **kwargs: s
 
   with open(file) as fp:
     SRC = fp.read()
