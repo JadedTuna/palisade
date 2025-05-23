@@ -1,5 +1,5 @@
 from lib.ast import *
-from lib.types import TUnresolved, TArray
+from lib.types import *
 from lib.utils import report_error
 
 PRECTABLE_ARITH      = 0
@@ -59,6 +59,12 @@ class Parser:
       return self.tokens[self.idx]
     else:
       return TOKEN_EOF
+
+  def peek(self, n: int) -> Token:
+    self.idx += n
+    tok = self.token()
+    self.idx -= n
+    return tok
 
   def expect(self, *types) -> Token:
     tok = self.token()
@@ -124,7 +130,11 @@ class Parser:
 
   def parse_term(self):
     if self.maybe('identifier'):
-      return self.parse_lvalue()
+      if self.peek(1).type == '(':
+        # function call
+        return self.parse_call()
+      else:
+        return self.parse_lvalue()
     elif self.maybe('integer', 'integer_hex', 'integer_bin', 'integer_oct'):
       return self.parse_integer()
     elif self.maybe('true', 'false'):
@@ -179,10 +189,31 @@ class Parser:
       self.expect(',')
     return EArrayLiteral(tok.span, TArray(TUnresolved(), len(values)), LOW, values)
 
+  def parse_type(self) -> Type:
+    # TODO: array type
+    tok = self.expect('int', 'bool')
+    if tok.type == 'int':
+      return TInt()
+    else:
+      return TBool()
+
+  def parse_call(self) -> ECall:
+    name = self.parse_identifier()
+    self.expect('(')
+    params = []
+    while not self.maybe(')'):
+      params.append(self.parse_expr())
+      if self.maybe(')'):
+        break
+      self.expect(',')
+    self.expect(')')
+    return ECall(name.span, TUnresolved(), LOW, name, params)
 
   def parse_stmt(self) -> Stmt:
     if self.maybe('{'):
       return self.parse_scope()
+    elif self.maybe('fn'):
+      return self.parse_fndef()
     elif self.maybe('if'):
       return self.parse_if()
     elif self.maybe('while'):
@@ -210,12 +241,41 @@ class Parser:
     return SScope(tok.span, stmts, HIGH, SymTab(None, {}))
 
   def parse_assign(self) -> SAssign:
-    # identifier = expr;
+    # lvalue = expr;
     lhs = self.parse_lvalue()
     tok = self.expect('=')
     rhs = self.parse_expr()
     self.expect(';')
     return SAssign(tok.span, lhs, rhs)
+
+  def parse_seclabel(self) -> bool:
+    tok = self.expect('high', 'low')
+    return tok.type == 'high'
+
+  def parse_fndef(self) -> SFnDef:
+    # fn name(params) reseclabel retype body
+    tok = self.expect('fn')
+    name = self.parse_identifier()
+    self.expect('(')
+    # arguments
+    params = []
+    while not self.maybe(')'):
+      pseclabel = self.parse_seclabel()
+      # TODO: lvalue?
+      pname = self.parse_identifier()
+      self.expect(':')
+      ptype = self.parse_type()
+      param = EFnParam(pname.span, ptype, pseclabel, pname.name,
+        SYMBOL_UNRESOLVED)
+      params.append(param)
+      if self.maybe(')'):
+        break
+      self.expect(',')
+    self.expect(')')
+    reseclabel = self.parse_seclabel()
+    retype = self.parse_type()
+    body = self.parse_scope()
+    return SFnDef(tok.span, name, params, reseclabel, retype, body)
 
   def parse_if(self) -> SIf:
     # if (clause) stmt [else stmt]
@@ -269,8 +329,7 @@ class Parser:
 
   def parse_vardef(self) -> SVarDef:
     # (high|low) identifier = expr ;
-    sectok = self.expect('high', 'low')
-    secure = sectok.type == 'high'
+    seclabel = self.parse_seclabel()
     lhs = self.parse_lvalue()
     tok = self.expect('=')
     rhs = self.parse_expr()
@@ -286,4 +345,4 @@ class Parser:
       if lhs.index.value < len(rhs.values):
         report_error('the array literal is to long', rhs.span)
     self.expect(';')
-    return SVarDef(tok.span, secure, lhs, rhs)
+    return SVarDef(tok.span, seclabel, lhs, rhs)

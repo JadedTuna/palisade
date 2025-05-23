@@ -34,7 +34,7 @@ def fold_tree(f, acc, node: AstNode, *args):
 
 def _traverse_tree(f, acc, node: AstNode):
   match node:
-    case EId() | EInt() | EBool():
+    case EId() | EInt() | EBool() | EFnParam():
       return (acc, node)
     case EArray(span, type, sec, expr, index):
       acc, nexpr = f(acc, expr)
@@ -53,6 +53,13 @@ def _traverse_tree(f, acc, node: AstNode):
       acc, nlhs = f(acc, lhs)
       acc, nrhs = f(acc, rhs)
       return (acc, EBinOp(span, type, sec, op, nlhs, nrhs))
+    case ECall(span, type, sec, name, params):
+      acc, nname = f(acc, name)
+      nparams = []
+      for param in params:
+        acc, nparam = f(acc, param)
+        nparams.append(nparam)
+      return (acc, ECall(span, type, sec, nname, nparams))
     case SScope(span, stmts, sec, symtab):
       nstmts = []
       for stmt in stmts:
@@ -63,6 +70,14 @@ def _traverse_tree(f, acc, node: AstNode):
       acc, nlhs = f(acc, lhs)
       acc, nrhs = f(acc, rhs)
       return (acc, SVarDef(span, sec, nlhs, nrhs))
+    case SFnDef(span, name, args, reseclabel, retype, body):
+      acc, nname = f(acc, name)
+      nargs = []
+      for arg in args:
+        acc, narg = f(acc, arg)
+        nargs.append(narg)
+      acc, nbody = f(acc, body)
+      return (acc, SFnDef(span, nname, nargs, reseclabel, retype, nbody))
     case SAssign(span, lhs, rhs):
       acc, nlhs = f(acc, lhs)
       acc, nrhs = f(acc, rhs)

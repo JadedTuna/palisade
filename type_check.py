@@ -47,7 +47,10 @@ def type_annotate(node: AstNode):
       return EInt(span, TInt(), sec, v)
     case EBool(span, TUnresolved(), sec, v):
       return EBool(span, TBool(), sec, v)
-    case EUnOp() | EBinOp():
+    case EFnParam(type=type, sym=sym):
+      sym.type = type
+      return node
+    case EUnOp() | EBinOp() | ECall():
       return map_tree(type_annotate, node)
     case SVarDef(span, sec, EId(_, _, _, _, sym) | EArray(_, _, _, EId(_, _, _, _, sym)) as lhs, rhs):
       nrhs = type_annotate(rhs)
@@ -55,6 +58,16 @@ def type_annotate(node: AstNode):
       sym.type = nrhs.type
       nlhs = type_annotate(lhs)
       return SVarDef(span, sec, nlhs, nrhs)
+    case SFnDef(span, EId(_, _, _, _, sym) as lhs, params, reseclabel, retype, body):
+      nparams = [type_annotate(param) for param in params]
+      # functions don't have explicit type defined, create one
+      tparams = [param.type for param in params]
+      sparams = [param.secure for param in params]
+      sym.type = TFn(retype, tparams, sparams)
+      nlhs = type_annotate(lhs)
+      # annotate body after connecting type to symbol, to handle recursive calls
+      nbody = type_annotate(body)
+      return SFnDef(span, nlhs, nparams, reseclabel, retype, nbody)
     case EArray() | EArrayLiteral() | SScope() | SAssign() | SIf() | SWhile() | STryCatch() | SThrow() | SDebug() | SDeclassify() | File():
       return map_tree(type_annotate, node)
     case _:
@@ -88,6 +101,16 @@ def type_check(node: AstNode):
       nrhs = type_check(rhs)
       type = type_ebinop(op, span, nlhs, nrhs)
       return EBinOp(span, type, sec, op, nlhs, nrhs)
+    case ECall(span, TUnresolved(), sec, EId(_, _, _, name, sym) as lhs, params):
+      nnode = map_tree(type_check, node)
+      if not isinstance(sym.type, TFn):
+        report_error(f'{name} is not a function', span)
+      for idx, (ty, param) in enumerate(zip(sym.type.params, params)):
+        if param.type != ty:
+          report_error(f'function parameter #{idx+1} has invalid type', param.span)
+      # propagate function return type to the ECall
+      nnode.type = sym.type.retype
+      return nnode
     case EId() | EInt() | EBool():
       return map_tree(type_check, node)
     case SAssign(span, _, _):
@@ -105,6 +128,9 @@ def type_check(node: AstNode):
       sym.type = nrhs.type
       nlhs = type_check(lhs)
       return SVarDef(span, sec, nlhs, nrhs)
+    case SFnDef():
+      # TODO
+      return node
     case SIf(span, clause, body, else_stmt):
       nclause = type_check(clause)
       if not isinstance(nclause.type, TBool):

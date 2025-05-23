@@ -20,3 +20,9 @@ class TBool(Type):
 class TArray(Type):
   of: Type
   length: int
+
+@dataclass
+class TFn(Type):
+  retype: Type
+  params: list[Type]
+  seclabels: list[bool]

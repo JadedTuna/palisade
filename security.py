@@ -4,7 +4,7 @@ from traverse import walk_tree, map_tree
 
 def assign_security_labels(node: AstNode):
   match node:
-    case EInt() | EBool():
+    case EInt() | EBool() | EArray() | EArrayLiteral() | EFnParam():
       return map_tree(assign_security_labels, node)
     case EId(span, type, _, name, sym):
       return EId(span, type, sym.secure, name, sym)
@@ -19,6 +19,10 @@ def assign_security_labels(node: AstNode):
       nrhs = assign_security_labels(rhs)
       sec = HIGH if nlhs.secure == HIGH or nrhs.secure == HIGH else LOW
       return EBinOp(span, type, sec, op, nlhs, nrhs)
+    case ECall():
+      nnode = map_tree(assign_security_labels, node)
+      nnode.secure = nnode.name.secure
+      return nnode
     case SIf() | SWhile():
       nnode = map_tree(assign_security_labels, node)
       nnode.body.secure = nnode.clause.secure
@@ -26,7 +30,7 @@ def assign_security_labels(node: AstNode):
     case SDeclassify(span, type, _, expr):
       nexpr = assign_security_labels(expr)
       return SDeclassify(span, type, LOW, nexpr)
-    case EArray() | EArrayLiteral() | SScope() | SVarDef() | SAssign() | STryCatch() | SThrow() | SDebug() | File():
+    case SScope() | SVarDef() | SFnDef() | SAssign() | STryCatch() | SThrow() | SDebug() | File():
       return map_tree(assign_security_labels, node)
     case _:
       report_error('unhandled node while assigning security labels', node.span)
@@ -40,6 +44,9 @@ def check_explicit_flows(node: AstNode):
     case SVarDef(span, _, lhs, rhs):
       if lhs.secure == LOW and rhs.secure == HIGH:
         report_security_error('insecure explicit flow', span)
+    case SFnDef():
+      # TODO
+      pass
     case SAssign(span, lhs, rhs):
       if lhs.secure == LOW and rhs.secure == HIGH:
         report_security_error('insecure explicit flow', span)

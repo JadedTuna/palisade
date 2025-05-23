@@ -23,7 +23,7 @@ def debug_ast(node: AstNode):
       if id.sym is not SYMBOL_UNRESOLVED:
         lnum = id.sym.origin.lnum + 1
         report_debug(f'defined on line {lnum}', id.sym.origin, '')
-    case SDebug(_, EInt(span, t, sec, _) | EBool(span, t, sec, _)):
+    case SDebug(_, EInt(span, t, sec, _) | EBool(span, t, sec, _) | ECall(span, t, sec, _, _)):
       ts = dpprint_type(t)
       ss = dpprint_seclabel(sec)
       report_debug(f'{blue("type:")} {ts}, {blue("seclabel:")} {ss}', span)

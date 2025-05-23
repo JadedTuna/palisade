@@ -97,6 +97,16 @@ class EBinOp(Expr):
   rhs: Expr
 
 @dataclass
+class EFnParam(Expr):
+  name: str
+  sym: Symbol
+
+@dataclass
+class ECall(Expr):
+  name: EId
+  params: list[Expr]
+
+@dataclass
 class Stmt(AstNode):
   pass
 
@@ -111,6 +121,14 @@ class SVarDef(Stmt):
   secure: bool
   lhs: EId
   rhs: Expr
+
+@dataclass
+class SFnDef(Stmt):
+  name: EId
+  params: list[EFnParam]
+  reseclabel: bool
+  retype: Type
+  body: SScope
 
 @dataclass
 class SAssign(Stmt):

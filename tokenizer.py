@@ -12,6 +12,7 @@ ID_BODY = ID_START + DIGITS
 EASY_MAP = '+-*%^~()[]{}:;,'
 KEYWORDS = [
   'if',
+  'fn',
   'else',
   'while',
   'debug',
@@ -26,6 +27,9 @@ KEYWORDS = [
 
   'high',
   'low',
+
+  'int',
+  'bool',
 ]
 
 class Tokenizer:
