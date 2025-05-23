@@ -70,11 +70,13 @@ def type_check(node: AstNode):
     case EArray():
       nnode =  map_tree(type_check, node)
       nnode.type = nnode.expr.type
+      if not isinstance(nnode.index, EInt):
+        report_error('array index must be an int', nnode.index.span)
       return nnode
     case EArrayLiteral():
       nnode = map_tree(type_check, node)
       if not all(val.type == nnode.values[0].type for val in nnode.values):
-        report_error('values of different types in array literal', node)
+        report_error('values of different types in array literal', nnode.span)
       nnode.type.of = nnode.values[0].type
       return nnode
     case EUnOp(span, TUnresolved(), sec, op, expr):
@@ -90,8 +92,10 @@ def type_check(node: AstNode):
       return map_tree(type_check, node)
     case SAssign(span, _, _):
       nnode = map_tree(type_check, node)
-      if nnode.lhs.type != nnode.rhs.type and (isinstance(nnode.lhs.type, EArray) and nnode.lhs.type.of != nnode.rhs.type):
+      if nnode.lhs.type != nnode.rhs.type and not isinstance(nnode.lhs, EArray):
         report_error('type mismatch in assignment', span)
+      if isinstance(nnode.lhs, EArray) and nnode.lhs.type.of != nnode.rhs.type:
+        report_error('type mismatch in array assignment', span)
       return nnode
     case SVarDef(span, sec, EId(_, _, _, _, sym) as lhs, rhs):
       nrhs = type_check(rhs)
