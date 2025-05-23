@@ -33,7 +33,7 @@ def assign_security_labels(node: AstNode):
 
 def check_explicit_flows(node: AstNode):
   match node:
-    case EInt() | EBool() | EId() | EUnOp() | EBinOp():
+    case EInt() | EBool() | EId() | EArray() | EArrayLiteral() | EUnOp() | EBinOp():
       walk_tree(check_explicit_flows, node)
     case SScope() | SIf() | SWhile() | STryCatch() | SThrow() | SDebug() | File():
       walk_tree(check_explicit_flows, node)
@@ -48,21 +48,24 @@ def check_explicit_flows(node: AstNode):
 
 def check_implicit_flows(node: AstNode, pc: bool):
   match node:
+    case EArray(span, _, sec, _, index):
+       if sec == LOW and index.secure == HIGH:
+         report_security_error("can't index with a high value in a low array", index.span)
+       walk_tree(check_implicit_flows, node, pc)
     case SIf(_, clause):
       pc = clause.secure == HIGH or pc == HIGH
       walk_tree(check_implicit_flows, node, pc)
     case SWhile(_, clause):
       if pc == HIGH or clause.secure == HIGH:
-        report_security_error('insecure implicit flow, while loop using a high guard', node.span)
+        report_security_error('insecure implicit flow - while loop using a high guard', node.span)
       walk_tree(check_implicit_flows, node, pc)
     case SAssign(_, lhs):
       if pc == HIGH and lhs.secure == LOW:
         report_security_error('insecure implicit flow inside high guard', node.span)
       walk_tree(check_implicit_flows, node, pc)
     case SThrow():
-      print("HEAUHFUIAEHFIUAEHFIUEFIUAHFI", pc)
       if pc == HIGH:
-        report_security_error("insecure implicit flow, can't throw inside a high guard", node.span)
+        report_security_error("insecure implicit flow - can't throw inside a high guard", node.span)
       walk_tree(check_implicit_flows, node, pc)
     case _:
       walk_tree(check_implicit_flows, node, pc)
