@@ -1,13 +1,20 @@
 in {
-    low x: int,
-    high y: int
+    low x: int;
+    high y: int;
 }
 out {
-    low z: int,
-    low p: bool,
-    low r: int
+    low z: int;
+    high p: bool;
 }
 
-v := 3;
-y = x;
-y = 2;
+if (y) {
+    if (x) {
+        z = 9;
+    } else {
+        z = y;
+    }
+} else {
+    z = x;
+}
+
+// z should be HIGH

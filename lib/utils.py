@@ -61,8 +61,8 @@ def report_security_error(msg: str, span: Span) -> NoReturn:
 def report_security_error_cont(msg: str, span: Span):
   report('security error', msg, span, purple)
 
-def report_note(msg: str, span: Span):
-  report('note', msg, span, blue)
+def report_note(msg: str, span: Span, **kwargs):
+  report('note', msg, span, blue, **kwargs)
 
 def report_debug(msg: str, span: Span,
                  epilogue: str|None = None, epilogue_pp = None):

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from itertools import count as idcount
 from .types import Type, TUnresolved
 
 @dataclass
@@ -28,6 +29,10 @@ class Symbol:
   type: Type
   secure: bool
   origin: Span = field(repr=False)
+  id: int = field(default_factory=idcount().__next__, init=False)
+
+  def __hash__(self):
+    return self.id
 
 SYMBOL_UNRESOLVED = Symbol('UNRESOLVED', TUnresolved(), HIGH, FAKE_SPAN)
 
@@ -67,6 +72,11 @@ class ELValue(Expr):
 class EId(ELValue):
   name: str
   sym: Symbol
+
+@dataclass
+class EGlobal(Expr):
+  expr: EId
+  orig_secure: bool
 
 @dataclass
 class EInt(Expr):
@@ -166,13 +176,8 @@ class SDeclassify(Expr):
   expr: Expr
 
 @dataclass
-class EGlobal(Expr):
-  name: str
-  sym: Symbol
-
-@dataclass
 class File(AstNode):
   stmts: list[Stmt]
   symtab: SymTab = field(repr=False)
-  inputs: dict[str, tuple[EGlobal, bool]]
-  outputs: dict[str, tuple[EGlobal, bool]]
+  inputs: list[EGlobal]
+  outputs: list[EGlobal]

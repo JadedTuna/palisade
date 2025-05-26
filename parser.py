@@ -101,10 +101,10 @@ class Parser:
 
   def parse(self) -> File:
     stmts = []
-    inputs, outputs = self.parse_globals()
+    ins, outs = self.parse_globals()
     while not self.maybe('eof'):
       stmts.append(self.parse_stmt())
-    return File(FAKE_SPAN, stmts, SymTab(None, {}), inputs, outputs)
+    return File(FAKE_SPAN, stmts, SymTab(None, {}), ins, outs)
 
   def parse_expr(self):
     if(self.maybe('declassify')):
@@ -347,27 +347,28 @@ class Parser:
     self.expect(';')
     return SVarDef(tok.span, rhs.secure, lhs, rhs)
   
-  def parse_global_variable(self) -> dict[str, tuple[EGlobal, bool]]:
-    globals = {}
-    while True:
-      pseclabel = self.parse_seclabel()
-      # TODO: lvalue?
-      pname = self.parse_identifier()
-      self.expect(':')
-      ptype = self.parse_type()
-      globals[pname.name] = (EGlobal(pname.span, ptype, pseclabel, pname.name, SYMBOL_UNRESOLVED), pseclabel)
-      if self.maybe('}'): break
-      self.expect(',')
-    return globals
+  def parse_global_variable(self) -> EGlobal:
+    seclabel = self.parse_seclabel()
+    # TODO: lvalue?
+    name = self.parse_identifier()
+    self.expect(':')
+    type = self.parse_type()
+    return EGlobal(name.span, type, seclabel, name, seclabel)
 
   def parse_globals(self):
+    ins = []
     self.expect('in')
     self.expect('{')
-    ins = self.parse_global_variable()
+    while not self.maybe('}'):
+      ins.append(self.parse_global_variable())
+      self.expect(';')
     self.expect('}')
-    # TODO: lvalue?
+
+    outs = []
     self.expect('out')
     self.expect('{')
-    outs = self.parse_global_variable()
+    while not self.maybe('}'):
+      outs.append(self.parse_global_variable())
+      self.expect(';')
     self.expect('}')
     return (ins, outs)

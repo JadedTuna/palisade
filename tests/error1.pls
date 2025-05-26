@@ -1,5 +1,5 @@
 high num = 20;
-high bool = false;
-if(num >= bool) {
+high b = false;
+if(num >= b) {
     num = 0;
 }

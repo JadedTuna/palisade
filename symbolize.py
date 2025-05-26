@@ -9,7 +9,16 @@ def symbolize(node: AstNode, symtab: SymTab):
       if sym is None:
         report_error('use of undefined variable', span)
       return EId(span, type, sec, name, sym)
-    case EFnParam(span, type, sec, name, _) | EGlobal(span, type, sec, name, _):
+    case EGlobal(span, type, sec, EId(name=name) as expr, origsec):
+      sym = symtab.lookup(name)
+      if sym is not None:
+        report_error_cont(f'redefinition of {name}', span)
+        report_note('previously defined here', sym.origin)
+        exit(1)
+      symtab.register(name, Symbol(name, type, origsec, span))
+      nexpr = symbolize(expr, symtab)
+      return EGlobal(span, type, sec, nexpr, origsec)
+    case EFnParam(span, type, sec, name, _):
       sym = symtab.lookup(name)
       if sym is not None:
         report_error_cont(f'redefinition of parameter {name}', span)
@@ -17,9 +26,7 @@ def symbolize(node: AstNode, symtab: SymTab):
         exit(1)
       sym = Symbol(name, type, sec, span)
       symtab.register(name, sym)
-      if isinstance(node, EFnParam):
-        return EFnParam(span, type, sec, name, sym)
-      return EGlobal(span, type, sec, name, sym)
+      return EFnParam(span, type, sec, name, sym)
     case SScope(span, stmts, sec, symtab_):
       symtab_.parent = symtab
       nstmts = [symbolize(stmt, symtab_) for stmt in stmts]

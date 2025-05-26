@@ -34,8 +34,11 @@ def fold_tree(f, acc, node: AstNode, *args):
 
 def _traverse_tree(f, acc, node: AstNode):
   match node:
-    case EId() | EInt() | EBool() | EFnParam() | EGlobal():
+    case EId() | EInt() | EBool() | EFnParam():
       return (acc, node)
+    case EGlobal(span, type, sec, expr, origsec):
+      acc, nexpr = f(acc, expr)
+      return (acc, EGlobal(span, type, sec, nexpr, origsec))
     case EArray(span, type, sec, expr, index):
       acc, nexpr = f(acc, expr)
       acc, nindex = f(acc, index)
@@ -105,14 +108,14 @@ def _traverse_tree(f, acc, node: AstNode):
       return (acc, SDeclassify(span, type, sec, nexpr))
     case File(span, stmts, symtab, ins, outs):
       nstmts = []
-      nins = {}
-      nouts = {}
-      for name, val in ins.items(): 
-        acc, nin = f(acc, val[0])
-        nins[name] = (nin, val[1])
-      for name, val in outs.items():
-        acc, nout = f(acc, val[0])
-        nouts[name] = (nout, val[1])
+      nins = []
+      nouts = []
+      for in_ in ins:
+        acc, nin = f(acc, in_)
+        nins.append(nin)
+      for out in outs:
+        acc, nout = f(acc, out)
+        nouts.append(nout)
       for stmt in stmts:
         acc, nstmt = f(acc, stmt)
         nstmts.append(nstmt)

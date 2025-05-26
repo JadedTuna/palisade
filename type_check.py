@@ -44,14 +44,14 @@ def type_annotate(node: AstNode):
       return EInt(span, TInt(), sec, v)
     case EBool(span, TUnresolved(), sec, v):
       return EBool(span, TBool(), sec, v)
-    case EFnParam(type=type, sym=sym) | EGlobal(type, sym):
+    case EFnParam(type=type, sym=sym):
       sym.type = type
       return node
     case EArray(span, _, sec, expr, index):
       nnode = map_tree(type_annotate, node)
       nnode.type = nnode.expr.type.of
       return nnode
-    case EUnOp() | EBinOp() | EArrayLiteral() | ECall():
+    case EUnOp() | EBinOp() | EArrayLiteral() | ECall() | EGlobal():
       return map_tree(type_annotate, node)
     case SVarDef(span, sec, (EId(sym=sym) | EArray(expr=EId(sym=sym))) as lhs, rhs):
       nrhs = type_annotate(rhs)
