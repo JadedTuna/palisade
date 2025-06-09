@@ -1,3 +1,14 @@
-low arr[3] = [false, false, false];
-high secret = 2;
-arr[secret] = true;
+in {
+	high secret: bool;
+}
+out {
+	low arr[3]: bool;
+}
+
+x := 10;
+y := false;
+if (secret) {
+	y = true;
+}
+
+arr[x] = y;

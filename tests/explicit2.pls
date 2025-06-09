@@ -1,3 +1,8 @@
-low arr[3] = [10, 3, 6];
-high secretNum = 99;
+in {
+	high secretNum: int;
+}
+out {
+	low arr[3]: int;
+}
+
 arr[2] = secretNum;

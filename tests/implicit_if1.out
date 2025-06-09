@@ -1,5 +1,7 @@
-[1;35msecurity error: [0minsecure implicit flow inside high guard
-   2 | low y = 0;
-   3 | if(x) {
-   4 |     y [1;35m=[0m 1;
-       [1;35m~~~~~~[0m[1;35m^[0m
+[1;34mnote: [0mlabel of [1;34my[0m set to [1;93mhigh[0m
+   9 |     y [1;34m=[0m 1;
+       [1;34m~~~~~~[0m[1;34m^[0m
+[1;34mnote: [0mlabel of [1;34my[0m set to [1;93mhigh[0m
+  11 |     y [1;34m=[0m -1;
+       [1;34m~~~~~~[0m[1;34m^[0m
+[[1;31mFAIL[0m] [1;93mlow [0m [1;34my[0m is [1;93mhigh[0m

@@ -1,5 +1,0 @@
-[1;35msecurity error: [0minsecure explicit flow
-   3 | }
-   4 | 
-   5 | low y [1;35m=[0m proc(2, 3);
-       [1;35m~~~~~~[0m[1;35m^[0m

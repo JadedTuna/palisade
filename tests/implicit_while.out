@@ -1,5 +1,5 @@
-[1;35msecurity error: [0minsecure implicit flow - while loop using a high guard
-   1 | high secret = 34;
-   2 | low guess = 0;
-   3 | [1;35mwhile[0m(guess != secret) {
-       [1;35m[0m[1;35m^^^^^[0m
+[1;35msecurity error: [0minsecure implicit flow - while loop with a high guard
+   7 | 
+   8 | guess = 0;
+   9 | while (guess [1;35m!=[0m secret) {
+       [1;35m~~~~~~~~~~~~~[0m[1;35m^^[0m

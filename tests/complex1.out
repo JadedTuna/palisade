@@ -1,0 +1,4 @@
+[1;34mnote: [0mlabel of [1;34mtotal[0m set to [1;93mhigh[0m
+  13 |     total [1;34m=[0m total + salaries[index];
+       [1;34m~~~~~~~~~~[0m[1;34m^[0m
+[[1;32m OK [0m] [1;93mlow [0m [1;34mavg[0m is [1;93mlow[0m

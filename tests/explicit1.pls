@@ -1,3 +1,8 @@
-high x = true;
-low y = false;
+in {
+	high x: bool;
+}
+out {
+	low y: bool;
+}
+
 y = x;

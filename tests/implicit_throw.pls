@@ -1,7 +1,13 @@
-high secret = true;
-low secretSteal = false;
+in {
+    high secret: bool;
+}
+out {
+    low secretSteal: bool;
+}
+
+secretSteal = false;
 try {
-    if(secret) {
+    if (secret) {
         throw;
     }
 } catch {

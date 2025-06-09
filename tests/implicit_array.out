@@ -1,5 +1,7 @@
-[1;35msecurity error: [0mcan't index with a high value in a low array
-   1 | low arr[3] = [false, false, false];
-   2 | high secret = 2;
-   3 | arr[[1;35msecret[0m] = true;
-       [1;35m~~~~[0m[1;35m^^^^^^[0m
+[1;34mnote: [0mlabel of [1;34my[0m set to [1;93mhigh[0m
+  11 |     y [1;34m=[0m true;
+       [1;34m~~~~~~[0m[1;34m^[0m
+[1;34mnote: [0mlabel of whole array [1;34marr[0m set to [1;93mhigh[0m
+  14 | arr[x] [1;34m=[0m y;
+       [1;34m~~~~~~~[0m[1;34m^[0m
+[[1;31mFAIL[0m] [1;93mlow [0m [1;34marr[0m is [1;93mhigh[0m
