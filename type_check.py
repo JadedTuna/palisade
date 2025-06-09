@@ -51,14 +51,15 @@ def type_annotate(node: AstNode):
       nnode = map_tree(type_annotate, node)
       nnode.type = nnode.expr.type.of
       return nnode
-    case EUnOp() | EBinOp() | EArrayLiteral() | ECall() | EGlobal():
+    case EUnOp() | EBinOp() | EArrayLiteral() | ECall():
       return map_tree(type_annotate, node)
-    case SVarDef(span, sec, (EId(sym=sym) | EArray(expr=EId(sym=sym))) as lhs, rhs):
+
+    case SVarDef(span, (EId(sym=sym) | EArray(expr=EId(sym=sym))) as lhs, rhs):
       nrhs = type_annotate(rhs)
       # type inference
       sym.type = nrhs.type
       nlhs = type_annotate(lhs)
-      return SVarDef(span, sec, nlhs, nrhs)
+      return SVarDef(span, nlhs, nrhs)
     case SFnDef(span, EId(_, _, _, _, sym) as lhs, params, reseclabel, retype, body):
       nparams = [type_annotate(param) for param in params]
       # functions don't have explicit type defined, create one
@@ -69,8 +70,16 @@ def type_annotate(node: AstNode):
       # annotate body after connecting type to symbol, to handle recursive calls
       nbody = type_annotate(body)
       return SFnDef(span, nlhs, nparams, reseclabel, retype, nbody)
-    case SScope() | SAssign() | SIf() | SWhile() | STryCatch() | SThrow() | SDebug() | SDeclassify() | File():
+    case SScope() | SAssign() | SIf() | SWhile() | STryCatch() | SThrow() | SDebug() | EDeclassify() | File():
       return map_tree(type_annotate, node)
+    case SGlobal(span, type, EId() as expr, origsec):
+      expr.sym.type = type
+      nexpr = type_annotate(expr)
+      return SGlobal(span, type, nexpr, origsec)
+    case SGlobal(span, type, EArray(expr=EId() as id, index=EInt(value=length)) as expr, origsec):
+      id.sym.type = TArray(type, length)
+      nexpr = type_annotate(expr)
+      return SGlobal(span, type, nexpr, origsec)
     case _:
       report_error('unhandled node in type annotate', node.span)
 
@@ -112,19 +121,24 @@ def type_check(node: AstNode):
       # propagate function return type to the ECall
       nnode.type = sym.type.retype
       return nnode
+    case EDeclassify(span, _, sec, expr):
+      nexpr = type_check(expr)
+      ntype = nexpr.type
+      return EDeclassify(span, ntype, sec, nexpr)
     case EId() | EInt() | EBool():
       return map_tree(type_check, node)
+
     case SAssign(span, _, _):
       nnode = map_tree(type_check, node)
       if nnode.lhs.type != nnode.rhs.type:
         report_error('type mismatch in assignment', span)
       return nnode
-    case SVarDef(span, sec, (EId(sym=sym) | EArray(expr=EId(sym=sym))) as lhs, rhs):
+    case SVarDef(span, (EId(sym=sym) | EArray(expr=EId(sym=sym))) as lhs, rhs):
       nrhs = type_check(rhs)
       # type inference
       sym.type = nrhs.type
       nlhs = type_check(lhs)
-      return SVarDef(span, sec, nlhs, nrhs)
+      return SVarDef(span, nlhs, nrhs)
     case SFnDef():
       # TODO
       return node
@@ -141,11 +155,7 @@ def type_check(node: AstNode):
         report_error('while-statement clause should be a bool', span)
       nbody = type_check(body)
       return SWhile(span, nclause, nbody)
-    case SDeclassify(span, _, sec, expr):
-      nexpr = type_check(expr)
-      ntype = nexpr.type
-      return SDeclassify(span, ntype, sec, nexpr)
-    case SScope() | SVarDef() |  STryCatch() | SThrow() | SDebug() | File() | EFnParam():
+    case SScope() | SVarDef() |  STryCatch() | SThrow() | SDebug() | SGlobal() | File() | EFnParam():
       return map_tree(type_check, node)
     case _:
       report_error('unhandled node in type check', node.span)

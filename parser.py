@@ -308,11 +308,11 @@ class Parser:
     self.expect(';')
     return SDebug(tok.span, expr)
   
-  def parse_declassify(self) -> SDeclassify:
+  def parse_declassify(self) -> EDeclassify:
     # declassify expr;
     tok = self.expect('declassify')
     expr = self.parse_expr()
-    return SDeclassify(tok.span, TUnresolved(), LOW, expr)
+    return EDeclassify(tok.span, TUnresolved(), LOW, expr)
   
   def parse_try_catch(self) -> STryCatch:
     # try { stmts } catch { stmts }
@@ -345,15 +345,15 @@ class Parser:
       if lhs.index.value < len(rhs.values):
         report_error('the array literal is to long', rhs.span)
     self.expect(';')
-    return SVarDef(tok.span, rhs.secure, lhs, rhs)
+    return SVarDef(tok.span, lhs, rhs)
   
-  def parse_global_variable(self) -> EGlobal:
+  def parse_global_variable(self) -> SGlobal:
     seclabel = self.parse_seclabel()
     # TODO: lvalue?
-    name = self.parse_identifier()
+    name = self.parse_lvalue()
     self.expect(':')
     type = self.parse_type()
-    return EGlobal(name.span, type, seclabel, name, seclabel)
+    return SGlobal(name.span, type, name, seclabel)
 
   def parse_globals(self):
     ins = []

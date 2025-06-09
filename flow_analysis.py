@@ -2,60 +2,183 @@ from lib.ast import *
 from lib.utils import *
 from traverse import walk_tree, map_tree
 
-def resolve_seclabel(*labels: list[bool]) -> bool:
+def resolve_seclabel(*labels: bool) -> bool:
   return any(labels)
 
-def join_secmodtbls(tbl1: dict[Symbol, bool], tbl2: dict[Symbol, bool]):
-  for key, value in tbl2.items():
-    tbl1[key] = any((tbl1.get(key, LOW), value))
+@dataclass
+class SecurityContext:
+  ctxvar: dict[Symbol, bool]
+  ctxarr: dict[Symbol, list[bool]]
 
-def flow_analysis(node: AstNode, pc: bool, secmodtbl: dict[Symbol, bool]):
+  def copy(self) -> 'SecurityContext':
+    return copy_dataclass(self)
+
+  def label_of(self, sym: Symbol, default: bool|None = None) -> bool:
+    if sym in self.ctxvar:
+      return self.ctxvar[sym]
+    elif sym in self.ctxarr:
+      return HIGH if any(self.ctxarr[sym]) else LOW
+    else:
+      return default
+
+  def label_of_var(self, sym: Symbol, default: bool|None = None) -> bool:
+    return self.ctxvar.get(sym, default)
+
+  def register_var(self, sym: Symbol, seclabel: bool):
+    assert(sym not in self.ctxvar)
+    self.ctxvar[sym] = seclabel
+
+  def relabel_var(self, sym: Symbol, seclabel: bool):
+    if not sym in self.ctxvar:
+      pprint(self)
+    assert(sym in self.ctxvar)
+    self.ctxvar[sym] = seclabel
+
+
+  def register_array(self, sym: Symbol, size: int, seclabel: bool):
+    assert(sym not in self.ctxarr)
+    self.ctxarr[sym] = [seclabel] * size
+
+  def label_of_array_index(self, sym: Symbol, idx: int) -> bool:
+    return self.ctxarr[sym][idx]
+
+  def relabel_array_index(self, sym: Symbol, idx: int, seclabel: bool):
+    self.ctxarr[sym][idx] = seclabel
+
+  def relabel_array(self, sym: Symbol, seclabel: bool):
+    assert(sym in self.ctxarr)
+    self.ctxarr[sym] = [seclabel] * len(self.ctxarr[sym])
+
+  def merge(self, other: 'SecurityContext'):
+    # merge variables
+    for sym, seclabel in other.ctxvar.items():
+      newlabel = resolve_seclabel(self.label_of_var(sym, LOW), seclabel)
+      self.relabel_var(sym, newlabel)
+    # merge arrays
+    for sym, seclabels in other.ctxarr.items():
+      assert(sym in self.ctxarr)
+      if sym in self.ctxarr:
+        for idx, seclabel in enumerate(seclabels):
+          nseclabel = resolve_seclabel(
+            self.label_of_array_index(sym, idx),
+            seclabel
+          )
+          self.relabel_array_index(sym, idx, nseclabel)
+      else:
+        self.regarr(sym)
+
+def flow_analysis(node: AstNode, pc: bool, ctx: SecurityContext):
   match node:
     case EId(span, type, _, name, sym):
-      sec = secmodtbl.get(sym, sym.secure)
+      sec = ctx.label_of_var(sym, sym.secure)
       return EId(span, type, sec, name, sym)
-    case EInt() | EBool() | EGlobal():
-      return map_tree(flow_analysis, node, pc, secmodtbl)
-    case SScope() | SVarDef():
-      return map_tree(flow_analysis, node, pc, secmodtbl)
-    case SAssign(span, (EId(name=name, sym=sym) | EArray(expr=EId(name=name, sym=sym))) as lhs, rhs):
+    case EInt() | EBool():
+      return map_tree(flow_analysis, node, pc, ctx)
+    case EArray(expr=EId(sym=sym)):
+      nnode = map_tree(flow_analysis, node, pc, ctx)
+      # l_arr = join(l_index, l_arr)
+      nnode.secure = HIGH if any((nnode.index.secure, ctx.label_of(sym))) else LOW
+      return nnode
+    case EUnOp():
+      nnode = map_tree(flow_analysis, node, pc, ctx)
+      nnode.secure = nnode.expr.secure
+      return nnode
+    case EBinOp():
+      nnode = map_tree(flow_analysis, node, pc, ctx)
+      nnode.secure = resolve_seclabel(nnode.lhs.secure, nnode.rhs.secure)
+      return nnode
+    case EDeclassify(span, type, _, expr):
+      nexpr = flow_analysis(expr, pc, ctx)
+      if nexpr.secure != HIGH:
+        report_security_error('can only declassify high information')
+      return EDeclassify(span, type, LOW, nexpr)
+
+    case SScope():
+      return map_tree(flow_analysis, node, pc, ctx)
+    case SVarDef(span, lhs, rhs):
+      nrhs = flow_analysis(rhs, pc, ctx)
+      # propagate security label to the symbol
+      lhs.sym.secure = nrhs.secure
+      # this will update lhs security label from the symbol
+      nlhs = flow_analysis(lhs, pc, ctx)
+      # TODO: handle arrays
+      ctx.register_var(lhs.sym, nrhs.secure)
+      return SVarDef(span, nlhs, nrhs)
+    case SAssign(span, EId(name=name, sym=sym) as lhs, rhs):
       origsec = sym.secure
-      nrhs = flow_analysis(rhs, pc, secmodtbl)
-      # TODO: for arrays, need to keep track which index
-      # is tainted. In general, need to be more careful with
-      # arrays
-      # modify symbol table
-      # sym.secure = resolve_seclabel(pc, nrhs.secure)
-      secmodtbl[sym] = resolve_seclabel(pc, nrhs.secure)
-      nlhs = flow_analysis(lhs, pc, secmodtbl)
-      if origsec != secmodtbl[sym]:
-        label = 'high' if secmodtbl[sym] else 'low'
+      nrhs = flow_analysis(rhs, pc, ctx)
+      # update variable's security label
+      ctx.relabel_var(sym, resolve_seclabel(pc, nrhs.secure))
+      nlhs = flow_analysis(lhs, pc, ctx)
+      if origsec != ctx.label_of_var(sym):
+        label = 'high' if ctx.label_of_var(sym) else 'low'
         report_note(f'label of {blue(name)} set to {yellow(label)}', span,
                     preamble_lines=0)
       return SAssign(span, nlhs, nrhs)
+    case SAssign(span, EArray(expr=EId(name=name, sym=sym), index=EInt() as idx) as lhs, rhs):
+      nrhs = flow_analysis(rhs, pc, ctx)
+      oldsec = ctx.label_of_array_index(sym, idx.value)
+      if oldsec != nrhs.secure:
+        label = 'high' if nrhs.secure else 'low'
+        report_note(f'label of {blue(name)}[{blue(idx.value)}] set to {yellow(label)}', span,
+          preamble_lines=0)
+      ctx.relabel_array_index(sym, idx.value, nrhs.secure)
+      nlhs = flow_analysis(lhs, pc, ctx)
+      return SAssign(span, nlhs, nrhs)
+    case SAssign(span, EArray(expr=EId(name=name, sym=sym), index=idx) as lhs, rhs):
+      nrhs = flow_analysis(rhs, pc, ctx)
+      nlhs = flow_analysis(lhs, pc, ctx)
+      newsec = HIGH if any((nlhs.secure, nrhs.secure)) else LOW
+      if newsec == HIGH:
+        # index is not statically known, hence mark whole array as high
+        report_note(f'label of whole array {blue(name)} set to {yellow("high")}', span,
+          preamble_lines=0)
+        ctx.relabel_array(sym, HIGH)
+      else:
+        # cannot know which index becomes low, so err on the side of
+        # caution and don't mark any as low
+        pass
+
+      return SAssign(span, nlhs, nrhs)
     case SIf(span, clause, body, els):
-      nclause = flow_analysis(clause, pc, secmodtbl)
+      nclause = flow_analysis(clause, pc, ctx)
       npc = resolve_seclabel(pc, nclause.secure)
-      els_secmodtbl = secmodtbl.copy()
-      nbody = flow_analysis(body, npc, secmodtbl)
-      nels = flow_analysis(els, npc, els_secmodtbl) if els else None
-      # merge else branch into the original secmodtbl
-      join_secmodtbls(secmodtbl, els_secmodtbl)
+      els_ctx = ctx.copy()
+      nbody = flow_analysis(body, npc, ctx)
+      nels = flow_analysis(els, npc, els_ctx) if els else None
+      # merge else branch into the original security context
+      ctx.merge(els_ctx)
       return SIf(span, nclause, nbody, nels)
     case SWhile(span, clause, body):
-      nclause = flow_analysis(clause, pc, secmodtbl)
+      nclause = flow_analysis(clause, pc, ctx)
       npc = resolve_seclabel(pc, nclause.secure)
       if npc == HIGH:
         # TODO: better error message if inside high if ()
-        report_error('insecure implicit flow - while loop with a high guard', clause.span)
-      nbody = flow_analysis(body, npc, secmodtbl)
-      nclause = flow_analysis(clause, pc, secmodtbl)
+        report_security_error('insecure implicit flow - while loop with a high guard', clause.span)
+      nbody = flow_analysis(body, npc, ctx)
+      nclause = flow_analysis(clause, pc, ctx)
       npc = resolve_seclabel(pc, nclause.secure)
       if npc == HIGH:
         # TODO: better error message if inside high if ()
-        report_error('insecure implicit flow - while loop with a high guard after iteration', clause.span)
+        report_security_error('insecure implicit flow - while loop with a high guard after iteration',
+          clause.span)
       return SWhile(span, nclause, nbody)
-    case File():
-      return map_tree(flow_analysis, node, pc, secmodtbl)
+    case SThrow(span):
+      if pc == HIGH:
+        report_security_error('throw in high context is not allowed', span)
+      return SThrow(span)
+    case SGlobal(span, type, expr, origsec):
+      match expr:
+        case EId(sym=sym):
+          ctx.register_var(sym, origsec)
+        case EArray(expr=EId(sym=sym), index=EInt(value=size)):
+          ctx.register_array(sym, size, origsec)
+        case _:
+          report_error(f'unhandled lvalue in flow analysis', expr.span)
+      nexpr = flow_analysis(expr, pc, ctx)
+      return SGlobal(span, type, nexpr, origsec)
+    case File() | STryCatch():
+      return map_tree(flow_analysis, node, pc, ctx)
     case _:
+      pprint(node)
       report_error('unhandled node in flow analysis', node.span)

@@ -1,6 +1,7 @@
 from pprint import pprint
 from typing import NoReturn
 from sys import exit
+from dataclasses import replace as copy_dataclass
 from .ast import Span, FAKE_SPAN
 
 def color(s, c): return f'\033[1;{c}m{s}\033[0m'

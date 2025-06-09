@@ -74,11 +74,6 @@ class EId(ELValue):
   sym: Symbol
 
 @dataclass
-class EGlobal(Expr):
-  expr: EId
-  orig_secure: bool
-
-@dataclass
 class EInt(Expr):
   value: int
 
@@ -117,6 +112,10 @@ class ECall(Expr):
   params: list[Expr]
 
 @dataclass
+class EDeclassify(Expr):
+  expr: Expr
+
+@dataclass
 class Stmt(AstNode):
   pass
 
@@ -128,7 +127,6 @@ class SScope(Stmt):
 
 @dataclass
 class SVarDef(Stmt):
-  secure: bool
   lhs: ELValue
   rhs: Expr
 
@@ -172,12 +170,14 @@ class SDebug(Stmt):
   expr: Expr
 
 @dataclass
-class SDeclassify(Expr):
-  expr: Expr
+class SGlobal(Stmt):
+  type: Type
+  expr: ELValue
+  orig_secure: bool
 
 @dataclass
 class File(AstNode):
   stmts: list[Stmt]
   symtab: SymTab = field(repr=False)
-  inputs: list[EGlobal]
-  outputs: list[EGlobal]
+  inputs: list[SGlobal]
+  outputs: list[SGlobal]

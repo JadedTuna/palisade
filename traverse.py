@@ -36,9 +36,6 @@ def _traverse_tree(f, acc, node: AstNode):
   match node:
     case EId() | EInt() | EBool() | EFnParam():
       return (acc, node)
-    case EGlobal(span, type, sec, expr, origsec):
-      acc, nexpr = f(acc, expr)
-      return (acc, EGlobal(span, type, sec, nexpr, origsec))
     case EArray(span, type, sec, expr, index):
       acc, nexpr = f(acc, expr)
       acc, nindex = f(acc, index)
@@ -69,10 +66,13 @@ def _traverse_tree(f, acc, node: AstNode):
         acc, nstmt = f(acc, stmt)
         nstmts.append(nstmt)
       return (acc, SScope(span, nstmts, sec, symtab))
-    case SVarDef(span, sec, lhs, rhs):
+    case SGlobal(span, type, expr, origsec):
+      acc, nexpr = f(acc, expr)
+      return (acc, SGlobal(span, type, nexpr, origsec))
+    case SVarDef(span, lhs, rhs):
       acc, nlhs = f(acc, lhs)
       acc, nrhs = f(acc, rhs)
-      return (acc, SVarDef(span, sec, nlhs, nrhs))
+      return (acc, SVarDef(span, nlhs, nrhs))
     case SFnDef(span, name, args, reseclabel, retype, body):
       acc, nname = f(acc, name)
       nargs = []
@@ -103,9 +103,9 @@ def _traverse_tree(f, acc, node: AstNode):
     case SDebug(span, expr):
       acc, nexpr = f(acc, expr)
       return (acc, SDebug(span, nexpr))
-    case SDeclassify(span, type, sec, expr):
+    case EDeclassify(span, type, sec, expr):
       acc, nexpr = f(acc, expr)
-      return (acc, SDeclassify(span, type, sec, nexpr))
+      return (acc, EDeclassify(span, type, sec, nexpr))
     case File(span, stmts, symtab, ins, outs):
       nstmts = []
       nins = []

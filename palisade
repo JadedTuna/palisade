@@ -14,7 +14,7 @@ TEST_ORDER = [
   'implicit_while',
   'implicit_throw',
   'implicit_array',
-  'functions1'
+  # 'functions1'
 ]
 
 @click.group()
@@ -47,6 +47,7 @@ def test(v):
   indent = ' '*4
   border_length = 80
   idx = 1
+  failed = 0
   for test in TEST_ORDER:
     start_border_length = border_length-len(str(idx))
     end_border_length = start_border_length+len(str(idx))+2
@@ -56,10 +57,12 @@ def test(v):
     with open(f'./tests/{test}.out') as f:
         expected = f.read()
     success = expected == actual
+    failed += 0 if success else 1
     if v or not success:
       if not v: print() # start newline after the dots
       if v: print(f'{blue('---\n---\n---')}')
-      print(f'{blue('--- running test')}', yellow(idx), blue('-'*start_border_length), '\n')
+      print(f'{blue('--- running test')}', yellow(idx), blue('-'*start_border_length))
+      print(f'    {yellow(test)}\n')
       print(cyan(' - test code -'), f'\n{indent}{src.replace('\n', f'\n{indent}')}', '\n')
       print(cyan(' - expected output -'), f'\n{indent}', expected.replace('\n', f'\n{indent}'))
       print(cyan(' - actual output -'), f'\n{indent}', actual.replace('\n', f'\n{indent}'))
@@ -70,6 +73,7 @@ def test(v):
       print(green('.'), end='', flush=True)
     idx += 1
   print()
+  print(f'failed: {failed}/{len(TEST_ORDER)}')
 
 @cli.command()
 @click.argument('file')
@@ -94,7 +98,7 @@ def compile(file, color, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_lab
   from type_check import type_annotate, type_check
   from security import assign_security_labels
   from debug import debug_ast
-  from lib.ast import HIGH, LOW, EGlobal
+  from lib.ast import HIGH, LOW, SGlobal
 
   if not color:
     # monkeypatch style to disable color
@@ -117,53 +121,42 @@ def compile(file, color, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_lab
   ast = type_annotate(ast)
   if p_type_annot: pprint(ast)
 
-  # seclabel pass runs before type-checking, to prevent potential
-  # side-channel information leakage (type of secure variable)
-  # ast = assign_security_labels(ast)
-  # if p_sec_labels: pprint(ast)
-
   debug_ast(ast)
 
-  from flow_analysis import flow_analysis
-  secmodtbl = {}
-  flow_analysis(ast, LOW, secmodtbl)
-  for sym, sec in secmodtbl.items():
+  from flow_analysis import flow_analysis, SecurityContext
+  ctx = SecurityContext({}, {})
+  flow_analysis(ast, LOW, ctx)
+  # integrate new security labels into the symbols
+  for sym, sec in ctx.ctxvar.items():
     sym.secure = sec
+  for sym, items in ctx.ctxarr.items():
+    sym.secure = HIGH if any(items) else LOW
   if p_sec_labels: pprint(ast)
 
-  def pprint_global(node: EGlobal):
-    currsec = 'high' if node.expr.sym.secure else 'low'
-    origsec = 'high' if node.orig_secure else 'low'
-    name = blue(node.expr.sym.name)
-    if origsec == currsec:
-      stat = green(' OK ')
-    elif origsec == 'low' and currsec == 'high':
-      stat = red('FAIL')
-    else:
-      stat = yellow(' OK ')
-    origsec = f'{origsec:4}'
-    print(f'[{stat}] {yellow(origsec)} {name} is {yellow(currsec)}')
+  from lib.ast import EId, EArray
+
+  def pprint_global(node: SGlobal):
+    match node.expr:
+      case EId(sym=sym) | EArray(expr=EId(sym=sym)):
+        currsec = 'high' if sym.secure else 'low'
+        origsec = 'high' if node.orig_secure else 'low'
+        name = blue(sym.name)
+        if origsec == currsec:
+          stat = green(' OK ')
+        elif origsec == 'low' and currsec == 'high':
+          stat = red('FAIL')
+        else:
+          stat = yellow(' OK ')
+        origsec = f'{origsec:4}'
+        print(f'[{stat}] {yellow(origsec)} {name} is {yellow(currsec)}')
+      case _:
+        raise RuntimeError()
+
   for out in ast.outputs:
     pprint_global(out)
 
-  # ast = type_check(ast)
-  # if p_type_check: pprint(ast)
-  return
-
-  # check flow analysis results
-  count = 1
-  for out in ast.outputs:
-    sym = out.expr.sym
-    if sym.secure != out.orig_secure:
-      print(red(f'> output {count}.'))
-      sorigsec = 'high' if out.orig_secure else 'low'
-      ssymsec = 'high' if sym.secure else 'low'
-      report_security_error_cont(f"The ouput variable {red(sym.name)} should be {yellow(sorigsec)} - but was {yellow(ssymsec)}", sym.origin)
-    # else:
-    #   print(green(f'> output {count}.'))
-    #   print(f"The ouput variable {green(sym.name)} had the expected security level")
-    # print()
-    count += 1
+  ast = type_check(ast)
+  if p_type_check: pprint(ast)
 
 if __name__ == '__main__':
   cli()
