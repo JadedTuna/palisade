@@ -345,11 +345,13 @@ class Parser:
       if lhs.index.value <= 0:
         report_error('array length must be greater than 0', lhs.expr.span)
       if not isinstance(rhs, EArrayLiteral):
-        report_error('no array literal provided while defining array', rhs.span)
-      if lhs.index.value > len(rhs.values):
-        report_error('the array literal is to short', rhs.span)
-      if lhs.index.value < len(rhs.values):
-        report_error('the array literal is to long', rhs.span)
+        pass
+        # report_error('no array literal provided while defining array', rhs.span)
+      else:
+        if lhs.index.value > len(rhs.values):
+          report_error('the array literal is to short', rhs.span)
+        if lhs.index.value < len(rhs.values):
+          report_error('the array literal is to long', rhs.span)
     self.expect(';')
     return SVarDef(tok.span, lhs, rhs)
   

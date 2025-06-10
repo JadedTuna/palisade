@@ -47,11 +47,7 @@ def type_annotate(node: AstNode):
     case FnParam(type=type, sym=sym):
       sym.type = type
       return node
-    case EArray(span, _, sec, expr, index):
-      nnode = map_tree(type_annotate, node)
-      nnode.type = nnode.expr.type.of
-      return nnode
-    case EUnOp() | EBinOp() | EArrayLiteral() | ECall():
+    case EArray() | EUnOp() | EBinOp() | EArrayLiteral() | ECall():
       return map_tree(type_annotate, node)
 
     case SVarDef(span, (EId(sym=sym) | EArray(expr=EId(sym=sym))) as lhs, rhs):
@@ -131,16 +127,30 @@ def type_check(node: AstNode):
 
     case SAssign(span, _, _):
       nnode = map_tree(type_check, node)
-      if isinstance(node.lhs.type, TArray):
-        report_error('array assignment is not allowed', span)
       if nnode.lhs.type != nnode.rhs.type:
         report_error('type mismatch in assignment', span)
       return nnode
+    case SVarDef(span, EArray(expr=EId(sym=sym), index=idx) as lhs, EId(sym=rsym) as rhs):
+      nrhs = type_check(rhs)
+      # type inference
+      if not isinstance(nrhs.type, TArray):
+        report_error('type mismatch, expected array type', nrhs.span)
+      sym.type = nrhs.type
+      nlhs = type_check(lhs)
+      if rsym.type.length != idx.value:
+        report_error('size mismatch between arrays', nrhs.span)
+      return SVarDef(span, nlhs, nrhs)
     case SVarDef(span, (EId(sym=sym) | EArray(expr=EId(sym=sym))) as lhs, rhs):
       nrhs = type_check(rhs)
       # type inference
       sym.type = nrhs.type
       nlhs = type_check(lhs)
+      match (nlhs, nrhs, nrhs.type):
+        case (EId(), EId(), TArray()):
+          # not allowed to define arrays without size specification
+          report_error('array definition must have size specification', span)
+        case _:
+          pass
       return SVarDef(span, nlhs, nrhs)
     case SFnDef():
       # TODO

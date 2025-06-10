@@ -152,12 +152,19 @@ def flow_analysis(node: AstNode, pc: SecLabel, ctx: SecurityContext):
       # update lhs security label from the symbol
       nlhs = flow_analysis(lhs, pc, ctx)
       return SVarDef(span, nlhs, nrhs)
-    case SVarDef(span, EArray() as lhs, EArrayLiteral() as rhs):
+    case SVarDef(span, EArray() as lhs, rhs):
       # array def
       nrhs = flow_analysis(rhs, pc, ctx)
-      # register security label for the symbol
-      # TODO: what about arrays defined with high size?
-      ctx.register_array(lhs.expr.sym, [v.secure for v in nrhs.values])
+      match nrhs:
+        case EArrayLiteral(values=values):
+          seclabels = [v.secure for v in values][::]
+        case EId(sym=rsym):
+          seclabels = ctx.labels_of_array(rsym)
+        case _:
+          # should've been caught in type-checking
+          raise RuntimeError()
+      # register security labels for the array symbol
+      ctx.register_array(lhs.expr.sym, seclabels)
       # update lhs security label from the symbol
       nlhs = flow_analysis(lhs, pc, ctx)
       return SVarDef(span, nlhs, nrhs)
