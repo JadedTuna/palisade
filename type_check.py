@@ -130,14 +130,16 @@ def type_check(node: AstNode):
       if nnode.lhs.type != nnode.rhs.type:
         report_error('type mismatch in assignment', span)
       return nnode
-    case SVarDef(span, EArray(expr=EId(sym=sym), index=idx) as lhs, EId(sym=rsym) as rhs):
+    case SVarDef(span, EArray(expr=EId(sym=sym), index=EInt() as index) as lhs, EId(sym=rsym) as rhs):
       nrhs = type_check(rhs)
       # type inference
       if not isinstance(nrhs.type, TArray):
         report_error('type mismatch, expected array type', nrhs.span)
       sym.type = nrhs.type
       nlhs = type_check(lhs)
-      if rsym.type.length != idx.value:
+      # guaranteed by type-checking
+      assert(isinstance(rsym.type, TArray))
+      if rsym.type.length != index.value:
         report_error('size mismatch between arrays', nrhs.span)
       return SVarDef(span, nlhs, nrhs)
     case SVarDef(span, (EId(sym=sym) | EArray(expr=EId(sym=sym))) as lhs, rhs):

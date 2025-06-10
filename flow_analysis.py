@@ -96,6 +96,7 @@ def flow_analysis(node: AstNode, pc: SecLabel, ctx: SecurityContext):
     case EArray(expr=EId(sym=sym)):
       nnode = map_tree(flow_analysis, node, pc, ctx)
       # l_arr = join(l_index, l_arr)
+      # TODO: make sure this makes sense
       nnode.secure = nnode.index.secure.join(ctx.label_of(sym))
       return nnode
     case EArrayLiteral(span, type, _, values):
@@ -139,7 +140,7 @@ def flow_analysis(node: AstNode, pc: SecLabel, ctx: SecurityContext):
       nbody = flow_analysis(sfndef.body, pc, fnctx)
       # figure out highest return security label
       retseclabels = fold_tree(fold_fn_returns, [], nbody)
-      sec = SecLabel.LOW.join(retseclabels)
+      sec = SecLabel.LOW.join(*retseclabels)
       return ECall(span, type, sec, nname, nargs)
 
     case SScope():
@@ -206,18 +207,18 @@ def flow_analysis(node: AstNode, pc: SecLabel, ctx: SecurityContext):
         report_note(f'label of {blue(name)} set to {yellow(label)}', span,
                     preamble_lines=0)
       return SAssign(span, nlhs, nrhs)
-    case SAssign(span, EArray(expr=EId(name=name, sym=sym), index=EInt() as idx) as lhs, rhs):
+    case SAssign(span, EArray(expr=EId(name=name, sym=sym), index=EInt() as index) as lhs, rhs):
       # array[EInt()] = ...
       nrhs = flow_analysis(rhs, pc, ctx)
-      oldsec = ctx.label_of_array_index(sym, idx.value)
+      oldsec = ctx.label_of_array_index(sym, index.value)
       if oldsec != nrhs.secure:
         label = str(nrhs.secure)
-        report_note(f'label of {blue(name)}[{blue(idx.value)}] set to {yellow(label)}', span,
+        report_note(f'label of {blue(name)}[{blue(index.value)}] set to {yellow(label)}', span,
           preamble_lines=0)
-      ctx.relabel_array_index(sym, idx.value, nrhs.secure)
+      ctx.relabel_array_index(sym, index.value, nrhs.secure)
       nlhs = flow_analysis(lhs, pc, ctx)
       return SAssign(span, nlhs, nrhs)
-    case SAssign(span, EArray(expr=EId(name=name, sym=sym), index=idx) as lhs, rhs):
+    case SAssign(span, EArray(expr=EId(name=name, sym=sym)) as lhs, rhs):
       # array[x] = ...
       nrhs = flow_analysis(rhs, pc, ctx)
       nlhs = flow_analysis(lhs, pc, ctx)
