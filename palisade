@@ -98,7 +98,8 @@ def compile(file, color, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_lab
   from type_check import type_annotate, type_check
   # from security import assign_security_labels
   from debug import debug_ast
-  from lib.ast import HIGH, LOW, SGlobal
+  from lib.ast import SGlobal
+  from lib.types import SecLabel
 
   if not color:
     # monkeypatch style to disable color
@@ -128,12 +129,12 @@ def compile(file, color, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_lab
 
   from flow_analysis import flow_analysis, SecurityContext
   ctx = SecurityContext({}, {})
-  flow_analysis(ast, LOW, ctx)
+  flow_analysis(ast, SecLabel.LOW, ctx)
   # integrate new security labels into the symbols
   for sym, sec in ctx.ctxvar.items():
     sym.secure = sec
-  for sym, items in ctx.ctxarr.items():
-    sym.secure = HIGH if any(items) else LOW
+  for sym, seclabels in ctx.ctxarr.items():
+    sym.secure = SecLabel.LOW.join(*seclabels)
   if p_sec_labels: pprint(ast)
 
   from lib.ast import EId, EArray
@@ -141,8 +142,8 @@ def compile(file, color, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_lab
   def pprint_global(node: SGlobal):
     match node.expr:
       case EId(sym=sym) | EArray(expr=EId(sym=sym)):
-        currsec = 'high' if sym.secure else 'low'
-        origsec = 'high' if node.orig_secure else 'low'
+        currsec = str(sym.secure)
+        origsec = str(node.orig_secure)
         name = blue(sym.name)
         if origsec == currsec:
           stat = green(' OK ')

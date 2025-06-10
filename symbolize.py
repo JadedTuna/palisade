@@ -15,7 +15,7 @@ def symbolize(node: AstNode, symtab: SymTab):
         report_error_cont(f'redefinition of parameter {name}', span)
         report_note('previously defined here', sym.origin)
         exit(1)
-      sym = Symbol(name, type, True, span)
+      sym = Symbol(name, type, SecLabel.INVALID, span)
       symtab.register(name, sym)
       return FnParam(span, type, name, sym)
     case SScope(span, stmts, sec, symtab_):
@@ -49,7 +49,7 @@ def symbolize(node: AstNode, symtab: SymTab):
         report_error_cont(f'redefinition of {name}', span)
         report_note('previously defined here', sym.origin)
         exit(1)
-      symtab.register(name, Symbol(name, TUnresolved(), HIGH, span))
+      symtab.register(name, Symbol(name, TUnresolved(), SecLabel.INVALID, span))
       nlhs = symbolize(lhs, symtab)
       return SVarDef(span, nlhs, nrhs)
     case SFnDef(span, EId(_, _, _, name, _) as lhs, params, retype,
@@ -60,7 +60,7 @@ def symbolize(node: AstNode, symtab: SymTab):
         report_note('previously defined here', sym.origin)
         exit(1)
       # register function
-      symtab.register(name, Symbol(name, TUnresolved(), True, span))
+      symtab.register(name, Symbol(name, TUnresolved(), SecLabel.INVALID, span))
       nlhs = symbolize(lhs, symtab)
       # register parameters
       # shadowing is allowed at this point, since symtab_

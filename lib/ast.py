@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from itertools import count as idcount
-from .types import Type, TUnresolved
+from .types import Type, TUnresolved, SecLabel
 
 @dataclass
 class Span:
@@ -20,21 +20,18 @@ class Token:
 FAKE_SPAN = Span(0, 0, 0, 0, 0, '')
 TOKEN_EOF = Token('eof', 'eof', FAKE_SPAN)
 
-HIGH = True
-LOW  = False
-
 @dataclass
 class Symbol:
   name: str
   type: Type
-  secure: bool
+  secure: SecLabel
   origin: Span = field(repr=False)
   id: int = field(default_factory=idcount().__next__, init=False)
 
   def __hash__(self):
     return self.id
 
-SYMBOL_UNRESOLVED = Symbol('UNRESOLVED', TUnresolved(), HIGH, FAKE_SPAN)
+SYMBOL_UNRESOLVED = Symbol('UNRESOLVED', TUnresolved(), SecLabel.INVALID, FAKE_SPAN)
 
 @dataclass
 class SymTab:
@@ -62,7 +59,7 @@ class AstNode:
 @dataclass
 class Expr(AstNode):
   type: Type
-  secure: bool
+  secure: SecLabel
 
 @dataclass
 class ELValue(Expr):
@@ -123,7 +120,7 @@ class Stmt(AstNode):
 @dataclass
 class SScope(Stmt):
   stmts: list[Stmt]
-  secure: bool
+  secure: SecLabel
   symtab: SymTab = field(repr=False)
 
 @dataclass
@@ -170,14 +167,14 @@ class SDebug(Stmt):
 
 @dataclass
 class SReturn(Stmt):
-  secure: bool
+  secure: SecLabel
   expr: Expr
 
 @dataclass
 class SGlobal(Stmt):
   type: Type
   expr: ELValue
-  orig_secure: bool
+  orig_secure: SecLabel
 
 @dataclass
 class File(AstNode):

@@ -10,8 +10,8 @@ def dpprint_type(type: Type) -> str:
     case TUnresolved(): return 'unresolved'
     case _: return red('invalid')
 
-def dpprint_seclabel(seclabel: bool) -> str:
-  return 'high' if seclabel else 'low'
+def dpprint_seclabel(seclabel: SecLabel) -> str:
+  return str(seclabel)
 
 def debug_ast(node: AstNode):
   match node:

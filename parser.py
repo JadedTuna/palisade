@@ -127,7 +127,7 @@ class Parser:
       # consume operator token
       self.consume()
       rhs = self.parse_expr_prec(op)
-      expr = EBinOp(op.span, TUnresolved(), HIGH, op.type, expr, rhs)
+      expr = EBinOp(op.span, TUnresolved(), SecLabel.INVALID, op.type, expr, rhs)
 
   def parse_term(self):
     if self.maybe('identifier'):
@@ -147,7 +147,7 @@ class Parser:
       return expr
     elif self.maybe(*UNOPS):
       op = self.consume()
-      return EUnOp(op.span, TUnresolved(), HIGH, op.type, self.parse_term())
+      return EUnOp(op.span, TUnresolved(), SecLabel.INVALID, op.type, self.parse_term())
     else:
       report_error('unexpected token while parsing expression', self.token().span)
 
@@ -157,27 +157,27 @@ class Parser:
       self.expect('[')
       index = self.parse_expr()
       self.expect(']')
-      return EArray(eid.span, TUnresolved(), HIGH, eid, index)
+      return EArray(eid.span, TUnresolved(), SecLabel.INVALID, eid, index)
     return eid
 
   def parse_identifier(self) -> EId:
     tok = self.expect('identifier')
-    return EId(tok.span, TUnresolved(), HIGH, tok.value, SYMBOL_UNRESOLVED)
+    return EId(tok.span, TUnresolved(), SecLabel.INVALID, tok.value, SYMBOL_UNRESOLVED)
 
   def parse_integer(self) -> EInt:
     tok = self.expect('integer', 'integer_hex', 'integer_bin', 'integer_oct')
     if tok.type == 'integer_hex':
-      return EInt(tok.span, TUnresolved(), LOW, int(tok.value, 16))
+      return EInt(tok.span, TUnresolved(), SecLabel.INVALID, int(tok.value, 16))
     if tok.type == 'integer_bin':
-      return EInt(tok.span, TUnresolved(), LOW, int(tok.value, 2))
+      return EInt(tok.span, TUnresolved(), SecLabel.INVALID, int(tok.value, 2))
     if tok.type == 'integer_oct':
-      return EInt(tok.span, TUnresolved(), LOW, int(tok.value, 8))
+      return EInt(tok.span, TUnresolved(), SecLabel.INVALID, int(tok.value, 8))
     else:
-      return EInt(tok.span, TUnresolved(), LOW, int(tok.value))
+      return EInt(tok.span, TUnresolved(), SecLabel.INVALID, int(tok.value))
 
   def parse_boolean(self) -> EBool:
     tok = self.expect('true', 'false')
-    return EBool(tok.span, TUnresolved(), LOW, tok.type == 'true')
+    return EBool(tok.span, TUnresolved(), SecLabel.INVALID, tok.type == 'true')
   
   def parse_array_literal(self) -> EArrayLiteral:
     tok = self.expect('[')
@@ -188,7 +188,7 @@ class Parser:
         self.expect(']')
         break
       self.expect(',')
-    return EArrayLiteral(tok.span, TArray(TUnresolved(), len(values)), LOW, values)
+    return EArrayLiteral(tok.span, TArray(TUnresolved(), len(values)), SecLabel.INVALID, values)
 
   def parse_type(self) -> Type:
     # TODO: array type
@@ -208,7 +208,7 @@ class Parser:
         break
       self.expect(',')
     self.expect(')')
-    return ECall(name.span, TUnresolved(), LOW, name, params)
+    return ECall(name.span, TUnresolved(), SecLabel.INVALID, name, params)
 
   def parse_stmt(self) -> Stmt:
     if self.maybe('{'):
@@ -241,7 +241,7 @@ class Parser:
     while not self.maybe('}'):
       stmts.append(self.parse_stmt())
     self.expect('}')
-    return SScope(tok.span, stmts, HIGH, SymTab(None, {}))
+    return SScope(tok.span, stmts, SecLabel.INVALID, SymTab(None, {}))
 
   def parse_assign(self) -> SAssign:
     # lvalue = expr;
@@ -251,9 +251,9 @@ class Parser:
     self.expect(';')
     return SAssign(tok.span, lhs, rhs)
 
-  def parse_seclabel(self) -> bool:
+  def parse_seclabel(self) -> SecLabel:
     tok = self.expect('high', 'low')
-    return tok.type == 'high'
+    return SecLabel.from_label(tok.type)
 
   def parse_fndef(self) -> SFnDef:
     # fn name(params) retype body
@@ -312,13 +312,13 @@ class Parser:
     tok = self.expect('return')
     expr = self.parse_expr()
     self.expect(';')
-    return SReturn(tok.span, True, expr)
+    return SReturn(tok.span, SecLabel.INVALID, expr)
   
   def parse_declassify(self) -> EDeclassify:
     # declassify expr;
     tok = self.expect('declassify')
     expr = self.parse_expr()
-    return EDeclassify(tok.span, TUnresolved(), LOW, expr)
+    return EDeclassify(tok.span, TUnresolved(), SecLabel.INVALID, expr)
   
   def parse_try_catch(self) -> STryCatch:
     # try { stmts } catch { stmts }
