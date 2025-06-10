@@ -123,6 +123,9 @@ def compile(file, color, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_lab
 
   debug_ast(ast)
 
+  ast = type_check(ast)
+  if p_type_check: pprint(ast)
+
   from flow_analysis import flow_analysis, SecurityContext
   ctx = SecurityContext({}, {})
   flow_analysis(ast, LOW, ctx)
@@ -154,9 +157,6 @@ def compile(file, color, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_lab
 
   for out in ast.outputs:
     pprint_global(out)
-
-  ast = type_check(ast)
-  if p_type_check: pprint(ast)
 
 if __name__ == '__main__':
   cli()
