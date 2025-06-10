@@ -1,0 +1,5 @@
+[1;31merror: [0msize mismatch between arrays
+   8 | x[3] := [false, true, arg];
+   9 | // error: size mismatch
+  10 | y[4] := [1;31marr[0m;
+       [1;31m~~~~~~~~[0m[1;31m^^^[0m

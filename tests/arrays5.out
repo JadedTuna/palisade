@@ -1,0 +1,13 @@
+[1;34mnote: [0mlabel of whole array [1;34marr[0m set to [1;93mhigh[0m
+   8 | arr[pos] [1;34m=[0m true;
+       [1;34m~~~~~~~~~[0m[1;34m^[0m
+[1;34mnote: [0mlabel of [1;34marr[0m[[1;34m0[0m] set to [1;93mlow[0m
+  10 | arr[0] [1;34m=[0m false;
+       [1;34m~~~~~~~[0m[1;34m^[0m
+[1;34mnote: [0mlabel of [1;34marr[0m[[1;34m1[0m] set to [1;93mlow[0m
+  11 | arr[1] [1;34m=[0m false;
+       [1;34m~~~~~~~[0m[1;34m^[0m
+[1;34mnote: [0mlabel of [1;34marr[0m[[1;34m2[0m] set to [1;93mlow[0m
+  12 | arr[2] [1;34m=[0m false;
+       [1;34m~~~~~~~[0m[1;34m^[0m
+[[1;32m OK [0m] [1;93mlow [0m [1;34marr[0m is [1;93mlow[0m

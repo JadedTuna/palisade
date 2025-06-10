@@ -5,6 +5,8 @@ from lib.utils import *
 TEST_ORDER = [
   'basic1',
   'basic2',
+  'globals',
+  'assignments',
   'complex1',
   'error1',
   'explicit1',
@@ -13,7 +15,11 @@ TEST_ORDER = [
   'implicit_if2',
   'implicit_while',
   'implicit_throw',
-  'implicit_array',
+  'arrays1',
+  'arrays2',
+  'arrays3',
+  'arrays4',
+  'arrays5',
   # 'functions1'
 ]
 

@@ -1,0 +1,7 @@
+[1;34mnote: [0mlabel of [1;34marr[0m[[1;34m2[0m] set to [1;93mhigh[0m
+  11 | arr [1;34m=[0m x;
+       [1;34m~~~~[0m[1;34m^[0m
+[1;34mnote: [0mlabel of [1;34marr[0m[[1;34m2[0m] set to [1;93mlow[0m
+  12 | arr [1;34m=[0m y;
+       [1;34m~~~~[0m[1;34m^[0m
+[[1;32m OK [0m] [1;93mlow [0m [1;34marr[0m is [1;93mlow[0m

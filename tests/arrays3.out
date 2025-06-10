@@ -1,0 +1,5 @@
+[1;31merror: [0marray definition must have size specification
+   8 | x[3] := [false, true, arg];
+   9 | // error, must specify size for z
+  10 | z [1;31m:=[0m x;
+       [1;31m~~[0m[1;31m^^[0m
