@@ -1,5 +1,6 @@
 from lib.ast import *
 from lib.utils import *
+from lib.types import *
 from traverse import *
 
 def resolve_seclabel(*labels: bool) -> bool:
@@ -18,11 +19,18 @@ class SecurityContext:
       return self.ctxvar[sym]
     elif sym in self.ctxarr:
       return HIGH if any(self.ctxarr[sym]) else LOW
-    else:
+    elif default is not None:
       return default
+    else:
+      raise RuntimeError(sym)
 
   def label_of_var(self, sym: Symbol, default: bool|None = None) -> bool:
-    return self.ctxvar.get(sym, default)
+    if sym in self.ctxvar:
+      return self.ctxvar[sym]
+    elif default is not None:
+      return default
+    else:
+      raise RuntimeError(sym)
 
   def register_var(self, sym: Symbol, seclabel: bool):
     assert(sym not in self.ctxvar)
@@ -65,6 +73,7 @@ class SecurityContext:
           )
           self.relabel_array_index(sym, idx, nseclabel)
       else:
+        assert(False)
         self.regarr(sym)
 
 def fold_fn_returns(acc: list[bool], node: AstNode):
@@ -97,7 +106,7 @@ def flow_analysis(node: AstNode, pc: bool, ctx: SecurityContext):
     case EDeclassify(span, type, _, expr):
       nexpr = flow_analysis(expr, pc, ctx)
       if nexpr.secure != HIGH:
-        report_security_error('can only declassify high information')
+        report_security_error('can only declassify high information', span)
       return EDeclassify(span, type, LOW, nexpr)
 
     # case SFnDef(span, params, retype, body):
@@ -111,6 +120,8 @@ def flow_analysis(node: AstNode, pc: bool, ctx: SecurityContext):
       for arg in args:
         nargs.append(flow_analysis(arg, pc, ctx))
 
+      # this is guaranteed by type-checking
+      assert(isinstance(name.sym.type, TFn))
       sfndef = name.sym.type.sfndef
       # create a new SecEnv for this
       fnctx = SecurityContext({}, {})
@@ -127,6 +138,7 @@ def flow_analysis(node: AstNode, pc: bool, ctx: SecurityContext):
     case SScope():
       return map_tree(flow_analysis, node, pc, ctx)
     case SVarDef(span, lhs, rhs):
+      # TODO: arrays?
       nrhs = flow_analysis(rhs, pc, ctx)
       # propagate security label to the symbol
       lhs.sym.secure = nrhs.secure

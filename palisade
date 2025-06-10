@@ -96,7 +96,7 @@ def compile(file, color, p_tokens, p_parse, p_symbolize, p_type_annot, p_sec_lab
   from parser import Parser
   from symbolize import symbolize
   from type_check import type_annotate, type_check
-  from security import assign_security_labels
+  # from security import assign_security_labels
   from debug import debug_ast
   from lib.ast import HIGH, LOW, SGlobal
 
