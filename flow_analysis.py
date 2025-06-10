@@ -40,12 +40,19 @@ class SecurityContext:
     self.ctxvar[sym] = seclabel
 
 
-  def register_array(self, sym: Symbol, size: int, seclabel: SecLabel):
+  def register_array(self, sym: Symbol, seclabels: list[SecLabel]):
+    assert(sym not in self.ctxarr)
+    self.ctxarr[sym] = seclabels
+
+  def register_array_basic(self, sym: Symbol, size: int, seclabel: SecLabel):
     assert(sym not in self.ctxarr)
     self.ctxarr[sym] = [seclabel] * size
 
   def label_of_array_index(self, sym: Symbol, idx: int) -> SecLabel:
     return self.ctxarr[sym][idx]
+
+  def labels_of_array(self, sym: Symbol) -> list[SecLabel]:
+    return self.ctxarr[sym][::]
 
   def relabel_array_index(self, sym: Symbol, idx: int, seclabel: SecLabel):
     self.ctxarr[sym][idx] = seclabel
@@ -91,6 +98,9 @@ def flow_analysis(node: AstNode, pc: SecLabel, ctx: SecurityContext):
       # l_arr = join(l_index, l_arr)
       nnode.secure = nnode.index.secure.join(ctx.label_of(sym))
       return nnode
+    case EArrayLiteral(span, type, _, values):
+      nvalues = [flow_analysis(val, pc, ctx) for val in values]
+      return EArrayLiteral(span, type, SecLabel.LOW, nvalues)
     case EUnOp():
       nnode = map_tree(flow_analysis, node, pc, ctx)
       nnode.secure = nnode.expr.secure
@@ -131,22 +141,54 @@ def flow_analysis(node: AstNode, pc: SecLabel, ctx: SecurityContext):
       retseclabels = fold_tree(fold_fn_returns, [], nbody)
       sec = SecLabel.LOW.join(retseclabels)
       return ECall(span, type, sec, nname, nargs)
+
     case SScope():
       return map_tree(flow_analysis, node, pc, ctx)
-    case SVarDef(span, lhs, rhs):
-      # TODO: arrays?
+    case SVarDef(span, EId(sym=sym) as lhs, rhs):
+      # var def
       nrhs = flow_analysis(rhs, pc, ctx)
-      # propagate security label to the symbol
-      lhs.sym.secure = nrhs.secure
-      # this will update lhs security label from the symbol
+      # register security label for the symbol
+      ctx.register_var(sym, nrhs.secure)
+      # update lhs security label from the symbol
       nlhs = flow_analysis(lhs, pc, ctx)
-      # TODO: handle arrays
-      ctx.register_var(lhs.sym, nrhs.secure)
+      return SVarDef(span, nlhs, nrhs)
+    case SVarDef(span, EArray() as lhs, EArrayLiteral() as rhs):
+      # array def
+      nrhs = flow_analysis(rhs, pc, ctx)
+      # register security label for the symbol
+      # TODO: what about arrays defined with high size?
+      ctx.register_array(lhs.expr.sym, [v.secure for v in nrhs.values])
+      # update lhs security label from the symbol
+      nlhs = flow_analysis(lhs, pc, ctx)
       return SVarDef(span, nlhs, nrhs)
     case SFnDef():
       # this will be processed manually on every ECall(...)
       return node
+    case SAssign(span, EId(name=name, sym=Symbol(type=TArray()) as sym) as lhs, rhs):
+      # x = ... where x is array
+      oseclabels = ctx.labels_of_array(sym)
+      nrhs = flow_analysis(rhs, pc, ctx)
+      match nrhs:
+        case EArrayLiteral(values=values):
+          # x = [...]
+          nseclabels = [val.secure for val in values][::]
+        case EId(sym=rsym):
+          # x = y
+          # type-checking made sure y is an array
+          nseclabels = ctx.labels_of_array(rsym)
+        case _:
+          raise RuntimeError(nrhs)
+      for idx, (osec, nsec) in enumerate(zip(oseclabels, nseclabels)):
+        if osec is not nsec:
+          label = str(nsec)
+          # TODO: this can get really verbose
+          report_note(f'label of {blue(name)}[{blue(idx)}] set to {yellow(label)}', span,
+            preamble_lines=0)
+        ctx.relabel_array_index(sym, idx, nsec)
+      nlhs = flow_analysis(lhs, pc, ctx)
+      return SAssign(span, nlhs, nrhs)
     case SAssign(span, EId(name=name, sym=sym) as lhs, rhs):
+      # x = ... where x is var
       origsec = ctx.label_of_var(sym, sym.secure)
       nrhs = flow_analysis(rhs, pc, ctx)
       # update variable's security label
@@ -158,16 +200,18 @@ def flow_analysis(node: AstNode, pc: SecLabel, ctx: SecurityContext):
                     preamble_lines=0)
       return SAssign(span, nlhs, nrhs)
     case SAssign(span, EArray(expr=EId(name=name, sym=sym), index=EInt() as idx) as lhs, rhs):
+      # array[EInt()] = ...
       nrhs = flow_analysis(rhs, pc, ctx)
       oldsec = ctx.label_of_array_index(sym, idx.value)
       if oldsec != nrhs.secure:
-        label = 'high' if nrhs.secure else 'low'
+        label = str(nrhs.secure)
         report_note(f'label of {blue(name)}[{blue(idx.value)}] set to {yellow(label)}', span,
           preamble_lines=0)
       ctx.relabel_array_index(sym, idx.value, nrhs.secure)
       nlhs = flow_analysis(lhs, pc, ctx)
       return SAssign(span, nlhs, nrhs)
     case SAssign(span, EArray(expr=EId(name=name, sym=sym), index=idx) as lhs, rhs):
+      # array[x] = ...
       nrhs = flow_analysis(rhs, pc, ctx)
       nlhs = flow_analysis(lhs, pc, ctx)
       newsec = nlhs.secure.join(nrhs.secure)
@@ -180,7 +224,6 @@ def flow_analysis(node: AstNode, pc: SecLabel, ctx: SecurityContext):
         # cannot know which index becomes low, so err on the side of
         # caution and don't mark any as low
         pass
-
       return SAssign(span, nlhs, nrhs)
     case SIf(span, clause, body, els):
       nclause = flow_analysis(clause, pc, ctx)
@@ -217,7 +260,7 @@ def flow_analysis(node: AstNode, pc: SecLabel, ctx: SecurityContext):
         case EId(sym=sym):
           ctx.register_var(sym, origsec)
         case EArray(expr=EId(sym=sym), index=EInt(value=size)):
-          ctx.register_array(sym, size, origsec)
+          ctx.register_array_basic(sym, size, origsec)
         case _:
           report_error(f'unhandled lvalue in flow analysis', expr.span)
       nexpr = flow_analysis(expr, pc, ctx)

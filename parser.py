@@ -153,7 +153,7 @@ class Parser:
 
   def parse_lvalue(self) -> ELValue:
     eid = self.parse_identifier()
-    if(self.maybe('[')):
+    if self.maybe('['):
       self.expect('[')
       index = self.parse_expr()
       self.expect(']')
@@ -228,10 +228,12 @@ class Parser:
     elif self.maybe('return'):
       return self.parse_return()
     elif self.maybe('identifier'):
-      if self.peek(1).type == ':=':
-        return self.parse_vardef()
-      return self.parse_assign()
-    # TODO: function calls
+      # lvalue ...
+      lvalue = self.parse_lvalue()
+      if self.maybe(':='):
+        return self.parse_vardef(lvalue)
+      else:
+        return self.parse_assign(lvalue)
     else:
       report_error('unexpected token while parsing statement', self.token().span)
 
@@ -243,9 +245,8 @@ class Parser:
     self.expect('}')
     return SScope(tok.span, stmts, SecLabel.INVALID, SymTab(None, {}))
 
-  def parse_assign(self) -> SAssign:
+  def parse_assign(self, lhs: ELValue) -> SAssign:
     # lvalue = expr;
-    lhs = self.parse_lvalue()
     tok = self.expect('=')
     rhs = self.parse_expr()
     self.expect(';')
@@ -334,9 +335,8 @@ class Parser:
     self.expect(';')
     return SThrow(tok.span)
 
-  def parse_vardef(self) -> SVarDef:
-    # identifier = expr ;
-    lhs = self.parse_lvalue()
+  def parse_vardef(self, lhs: ELValue) -> SVarDef:
+    # lvalue := expr ;
     tok = self.expect(':=')
     rhs = self.parse_expr()
     if isinstance(lhs, EArray):

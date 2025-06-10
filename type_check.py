@@ -131,6 +131,8 @@ def type_check(node: AstNode):
 
     case SAssign(span, _, _):
       nnode = map_tree(type_check, node)
+      if isinstance(node.lhs.type, TArray):
+        report_error('array assignment is not allowed', span)
       if nnode.lhs.type != nnode.rhs.type:
         report_error('type mismatch in assignment', span)
       return nnode
