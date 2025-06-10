@@ -11,8 +11,10 @@ ID_START = string.ascii_letters + '_'
 ID_BODY = ID_START + DIGITS
 EASY_MAP = '+-*%^~()[]{}:;,'
 KEYWORDS = [
-  'if',
   'fn',
+  'return',
+
+  'if',
   'else',
   'while',
   'debug',

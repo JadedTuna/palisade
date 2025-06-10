@@ -44,7 +44,7 @@ def type_annotate(node: AstNode):
       return EInt(span, TInt(), sec, v)
     case EBool(span, TUnresolved(), sec, v):
       return EBool(span, TBool(), sec, v)
-    case EFnParam(type=type, sym=sym):
+    case FnParam(type=type, sym=sym):
       sym.type = type
       return node
     case EArray(span, _, sec, expr, index):
@@ -60,17 +60,18 @@ def type_annotate(node: AstNode):
       sym.type = nrhs.type
       nlhs = type_annotate(lhs)
       return SVarDef(span, nlhs, nrhs)
-    case SFnDef(span, EId(_, _, _, _, sym) as lhs, params, reseclabel, retype, body):
+    case SFnDef(span, EId(_, _, _, _, sym) as lhs, params, retype, body):
       nparams = [type_annotate(param) for param in params]
       # functions don't have explicit type defined, create one
       tparams = [param.type for param in params]
-      sparams = [param.secure for param in params]
-      sym.type = TFn(retype, tparams, sparams)
+      sym.type = TFn(retype, tparams, None)
       nlhs = type_annotate(lhs)
       # annotate body after connecting type to symbol, to handle recursive calls
       nbody = type_annotate(body)
-      return SFnDef(span, nlhs, nparams, reseclabel, retype, nbody)
-    case SScope() | SAssign() | SIf() | SWhile() | STryCatch() | SThrow() | SDebug() | EDeclassify() | File():
+      nnode = SFnDef(span, nlhs, nparams, retype, nbody)
+      sym.type.sfndef = nnode
+      return nnode
+    case SScope() | SAssign() | SIf() | SWhile() | STryCatch() | SThrow() | SDebug() | SReturn() | EDeclassify() | File():
       return map_tree(type_annotate, node)
     case SGlobal(span, type, EId() as expr, origsec):
       expr.sym.type = type
@@ -155,7 +156,7 @@ def type_check(node: AstNode):
         report_error('while-statement clause should be a bool', span)
       nbody = type_check(body)
       return SWhile(span, nclause, nbody)
-    case SScope() | SVarDef() |  STryCatch() | SThrow() | SDebug() | SGlobal() | File() | EFnParam():
+    case SScope() | SVarDef() |  STryCatch() | SThrow() | SDebug() | SGlobal() | File() | FnParam():
       return map_tree(type_check, node)
     case _:
       report_error('unhandled node in type check', node.span)

@@ -225,6 +225,8 @@ class Parser:
       return self.parse_throw()
     elif self.maybe('debug'):
       return self.parse_debug()
+    elif self.maybe('return'):
+      return self.parse_return()
     elif self.maybe('identifier'):
       if self.peek(1).type == ':=':
         return self.parse_vardef()
@@ -254,29 +256,26 @@ class Parser:
     return tok.type == 'high'
 
   def parse_fndef(self) -> SFnDef:
-    # fn name(params) reseclabel retype body
+    # fn name(params) retype body
     tok = self.expect('fn')
     name = self.parse_identifier()
     self.expect('(')
     # arguments
     params = []
     while not self.maybe(')'):
-      pseclabel = self.parse_seclabel()
-      # TODO: lvalue?
+      # TODO: lvalue?/arrays
       pname = self.parse_identifier()
       self.expect(':')
       ptype = self.parse_type()
-      param = EFnParam(pname.span, ptype, pseclabel, pname.name,
-        SYMBOL_UNRESOLVED)
+      param = FnParam(pname.span, ptype, pname.name, SYMBOL_UNRESOLVED)
       params.append(param)
       if self.maybe(')'):
         break
       self.expect(',')
     self.expect(')')
-    reseclabel = self.parse_seclabel()
     retype = self.parse_type()
     body = self.parse_scope()
-    return SFnDef(tok.span, name, params, reseclabel, retype, body)
+    return SFnDef(tok.span, name, params, retype, body)
 
   def parse_if(self) -> SIf:
     # if (clause) stmt [else stmt]
@@ -307,6 +306,13 @@ class Parser:
     expr = self.parse_expr()
     self.expect(';')
     return SDebug(tok.span, expr)
+
+  def parse_return(self) -> SReturn:
+    # return expr;
+    tok = self.expect('return')
+    expr = self.parse_expr()
+    self.expect(';')
+    return SReturn(tok.span, True, expr)
   
   def parse_declassify(self) -> EDeclassify:
     # declassify expr;

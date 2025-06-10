@@ -9,15 +9,15 @@ def symbolize(node: AstNode, symtab: SymTab):
       if sym is None:
         report_error('use of undefined variable', span)
       return EId(span, type, sec, name, sym)
-    case EFnParam(span, type, sec, name, _):
+    case FnParam(span, type, name, _):
       sym = symtab.lookup(name)
       if sym is not None:
         report_error_cont(f'redefinition of parameter {name}', span)
         report_note('previously defined here', sym.origin)
         exit(1)
-      sym = Symbol(name, type, sec, span)
+      sym = Symbol(name, type, True, span)
       symtab.register(name, sym)
-      return EFnParam(span, type, sec, name, sym)
+      return FnParam(span, type, name, sym)
     case SScope(span, stmts, sec, symtab_):
       symtab_.parent = symtab
       nstmts = [symbolize(stmt, symtab_) for stmt in stmts]
@@ -52,7 +52,7 @@ def symbolize(node: AstNode, symtab: SymTab):
       symtab.register(name, Symbol(name, TUnresolved(), HIGH, span))
       nlhs = symbolize(lhs, symtab)
       return SVarDef(span, nlhs, nrhs)
-    case SFnDef(span, EId(_, _, _, name, _) as lhs, params, reseclabel, retype,
+    case SFnDef(span, EId(_, _, _, name, _) as lhs, params, retype,
                 SScope(_, _, _, symtab_) as body):
       sym = symtab.lookup(name)
       if sym is not None:
@@ -60,7 +60,7 @@ def symbolize(node: AstNode, symtab: SymTab):
         report_note('previously defined here', sym.origin)
         exit(1)
       # register function
-      symtab.register(name, Symbol(name, TUnresolved(), reseclabel, span))
+      symtab.register(name, Symbol(name, TUnresolved(), True, span))
       nlhs = symbolize(lhs, symtab)
       # register parameters
       # shadowing is allowed at this point, since symtab_
@@ -68,6 +68,6 @@ def symbolize(node: AstNode, symtab: SymTab):
       nparams = [symbolize(param, symtab_) for param in params]
       # finally, symbolize the body
       nbody = symbolize(body, symtab)
-      return SFnDef(span, nlhs, nparams, reseclabel, retype, nbody)
+      return SFnDef(span, nlhs, nparams, retype, nbody)
     case _:
       return map_tree(symbolize, node, symtab)

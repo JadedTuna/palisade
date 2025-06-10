@@ -102,7 +102,8 @@ class EBinOp(Expr):
   rhs: Expr
 
 @dataclass
-class EFnParam(Expr):
+class FnParam(AstNode):
+  type: Type
   name: str
   sym: Symbol
 
@@ -133,8 +134,7 @@ class SVarDef(Stmt):
 @dataclass
 class SFnDef(Stmt):
   name: EId
-  params: list[EFnParam]
-  reseclabel: bool
+  params: list[FnParam]
   retype: Type
   body: SScope
 
@@ -148,7 +148,6 @@ class SIf(Stmt):
   clause: Expr
   body: SScope
   else_stmt: SScope | None
-  # TODO: only accept SScope
   # TODO: allow if (...) do ...
 
 @dataclass
@@ -167,6 +166,11 @@ class SThrow(Stmt):
 
 @dataclass
 class SDebug(Stmt):
+  expr: Expr
+
+@dataclass
+class SReturn(Stmt):
+  secure: bool
   expr: Expr
 
 @dataclass

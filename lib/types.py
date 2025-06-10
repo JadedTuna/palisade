@@ -25,4 +25,4 @@ class TArray(Type):
 class TFn(Type):
   retype: Type
   params: list[Type]
-  seclabels: list[bool]
+  sfndef: 'SFnDef'

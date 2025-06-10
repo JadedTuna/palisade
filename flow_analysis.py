@@ -1,6 +1,6 @@
 from lib.ast import *
 from lib.utils import *
-from traverse import walk_tree, map_tree
+from traverse import *
 
 def resolve_seclabel(*labels: bool) -> bool:
   return any(labels)
@@ -67,6 +67,13 @@ class SecurityContext:
       else:
         self.regarr(sym)
 
+def fold_fn_returns(acc: list[bool], node: AstNode):
+  match node:
+    case SReturn(secure=sec):
+      return acc + [sec]
+    case _:
+      return fold_tree(fold_fn_returns, acc, node)
+
 def flow_analysis(node: AstNode, pc: bool, ctx: SecurityContext):
   match node:
     case EId(span, type, _, name, sym):
@@ -93,6 +100,30 @@ def flow_analysis(node: AstNode, pc: bool, ctx: SecurityContext):
         report_security_error('can only declassify high information')
       return EDeclassify(span, type, LOW, nexpr)
 
+    # case SFnDef(span, params, retype, body):
+    #   # create a new SecEnv for this
+    #   fnctx = SecurityContext({}, {})
+    #   for param in params:
+    #     param.sym.
+    case ECall(span, type, _, name, args):
+      nname = flow_analysis(name, pc, ctx)
+      nargs = []
+      for arg in args:
+        nargs.append(flow_analysis(arg, pc, ctx))
+
+      sfndef = name.sym.type.sfndef
+      # create a new SecEnv for this
+      fnctx = SecurityContext({}, {})
+      # register argument labels
+      for param, narg in zip(sfndef.params, nargs):
+        param.sym.secure = narg.secure
+        fnctx.register_var(param.sym, narg.secure)
+      # process body
+      nbody = flow_analysis(sfndef.body, pc, fnctx)
+      # figure out highest return security label
+      retseclabels = fold_tree(fold_fn_returns, [], nbody)
+      sec = resolve_seclabel(*retseclabels)
+      return ECall(span, type, sec, nname, nargs)
     case SScope():
       return map_tree(flow_analysis, node, pc, ctx)
     case SVarDef(span, lhs, rhs):
@@ -104,8 +135,11 @@ def flow_analysis(node: AstNode, pc: bool, ctx: SecurityContext):
       # TODO: handle arrays
       ctx.register_var(lhs.sym, nrhs.secure)
       return SVarDef(span, nlhs, nrhs)
+    case SFnDef():
+      # this will be processed manually on every ECall(...)
+      return node
     case SAssign(span, EId(name=name, sym=sym) as lhs, rhs):
-      origsec = sym.secure
+      origsec = ctx.label_of_var(sym, sym.secure)
       nrhs = flow_analysis(rhs, pc, ctx)
       # update variable's security label
       ctx.relabel_var(sym, resolve_seclabel(pc, nrhs.secure))
@@ -167,6 +201,9 @@ def flow_analysis(node: AstNode, pc: bool, ctx: SecurityContext):
       if pc == HIGH:
         report_security_error('throw in high context is not allowed', span)
       return SThrow(span)
+    case SReturn(span, _, expr):
+      nexpr = flow_analysis(expr, pc, ctx)
+      return SReturn(span, resolve_seclabel(pc, nexpr.secure), nexpr)
     case SGlobal(span, type, expr, origsec):
       match expr:
         case EId(sym=sym):
@@ -180,5 +217,4 @@ def flow_analysis(node: AstNode, pc: bool, ctx: SecurityContext):
     case File() | STryCatch():
       return map_tree(flow_analysis, node, pc, ctx)
     case _:
-      pprint(node)
       report_error('unhandled node in flow analysis', node.span)
