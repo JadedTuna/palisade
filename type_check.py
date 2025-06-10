@@ -1,7 +1,7 @@
 from lib.ast import *
 from lib.types import *
 from lib.utils import report_error, report_error_cont, exit
-from traverse import map_tree
+from traverse import map_tree, walk_tree
 from debug import debug_ast
 from parser import BINOPS, UNOPS, PRECTABLE_BOOLEAN, PRECTABLE_COMPARISON
 
@@ -80,6 +80,15 @@ def type_annotate(node: AstNode):
     case _:
       report_error('unhandled node in type annotate', node.span)
 
+def type_check_return(node: AstNode, retype: Type):
+  match node:
+    case SReturn(span, _, expr):
+      nexpr = type_check(expr)
+      if nexpr.type != retype:
+        report_error('type mismatch in return', span)
+    case _:
+      walk_tree(type_check_return, node, retype)
+
 def type_check(node: AstNode):
   match node:
     case EId(span, TUnresolved(), sec, name, sym):
@@ -154,9 +163,13 @@ def type_check(node: AstNode):
         case _:
           pass
       return SVarDef(span, nlhs, nrhs)
-    case SFnDef():
-      # TODO
-      return node
+    case SFnDef(span, name, params, retype, body):
+      nname = type_check(name)
+      nparams = list(map(type_check, params))
+      nbody = type_check(body)
+      # make sure return statements have correct types
+      type_check_return(nbody, retype)
+      return SFnDef(span, nname, nparams, retype, body)
     case SIf(span, clause, body, else_stmt):
       nclause = type_check(clause)
       if not isinstance(nclause.type, TBool):
@@ -170,7 +183,7 @@ def type_check(node: AstNode):
         report_error('while-statement clause should be a bool', span)
       nbody = type_check(body)
       return SWhile(span, nclause, nbody)
-    case SScope() | SVarDef() |  STryCatch() | SThrow() | SDebug() | SGlobal() | File() | FnParam():
+    case SScope() | SVarDef() |  STryCatch() | SThrow() | SDebug() | SReturn() | SGlobal() | File() | FnParam():
       return map_tree(type_check, node)
     case _:
       report_error('unhandled node in type check', node.span)
