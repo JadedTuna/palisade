@@ -1,0 +1,5 @@
+[1;34mnote: [0mlabel of [1;34my[0m set to [1;93mhigh[0m
+  13 | y [1;34m=[0m bar(secret);
+       [1;34m~~[0m[1;34m^[0m
+[[1;32m OK [0m] [1;93mlow [0m [1;34mx[0m is [1;93mlow[0m
+[[1;31mFAIL[0m] [1;93mlow [0m [1;34my[0m is [1;93mhigh[0m

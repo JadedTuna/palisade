@@ -1,0 +1,5 @@
+[1;35msecurity error: [0mthrow in high context is not allowed
+   7 | 
+   8 | fn foo() int {
+   9 |     [1;35mthrow[0m;
+       [1;35m~~~~[0m[1;35m^^^^^[0m

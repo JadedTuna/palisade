@@ -20,7 +20,9 @@ TEST_ORDER = [
   'arrays3',
   'arrays4',
   'arrays5',
-  'functions1'
+  'functions1',
+  'functions2',
+  'functions3',
 ]
 
 @click.group()

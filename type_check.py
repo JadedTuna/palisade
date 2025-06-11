@@ -83,8 +83,7 @@ def type_annotate(node: AstNode):
 def type_check_return(node: AstNode, retype: Type):
   match node:
     case SReturn(span, _, expr):
-      nexpr = type_check(expr)
-      if nexpr.type != retype:
+      if expr.type != retype:
         report_error('type mismatch in return', span)
     case _:
       walk_tree(type_check_return, node, retype)
