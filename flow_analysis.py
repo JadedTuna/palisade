@@ -93,10 +93,17 @@ def flow_analysis(node: AstNode, pc: SecLabel, ctx: SecurityContext):
       return EInt(span, type, SecLabel.LOW, value)
     case EBool(span, type, _, value):
       return EBool(span, type, SecLabel.LOW, value)
-    case EArray(expr=EId(sym=sym)):
+    case EArray(expr=EId(sym=sym), index=EInt() as index):
+      # array access with an integer literal
       nnode = map_tree(flow_analysis, node, pc, ctx)
-      # l_arr = join(l_index, l_arr)
-      # TODO: make sure this makes sense
+      # l_access = join(l_index, l_arr[index])
+      nnode.secure = nnode.index.secure.join(
+        ctx.label_of_array_index(sym, index.value))
+      return nnode
+    case EArray(expr=EId(sym=sym)):
+      # array access with a statically-unknown index
+      nnode = map_tree(flow_analysis, node, pc, ctx)
+      # l_access = join(l_index, l_arr)
       nnode.secure = nnode.index.secure.join(ctx.label_of(sym))
       return nnode
     case EArrayLiteral(span, type, _, values):
@@ -167,7 +174,8 @@ def flow_analysis(node: AstNode, pc: SecLabel, ctx: SecurityContext):
       # register security labels for the array symbol
       ctx.register_array(lhs.expr.sym, seclabels)
       # update lhs security label from the symbol
-      nlhs = flow_analysis(lhs, pc, ctx)
+      # nlhs = flow_analysis(lhs, pc, ctx)
+      nlhs = lhs
       return SVarDef(span, nlhs, nrhs)
     case SFnDef():
       # this will be processed manually on every ECall(...)
@@ -271,8 +279,9 @@ def flow_analysis(node: AstNode, pc: SecLabel, ctx: SecurityContext):
           ctx.register_array_basic(sym, size, origsec)
         case _:
           report_error(f'unhandled lvalue in flow analysis', expr.span)
-      nexpr = flow_analysis(expr, pc, ctx)
-      return SGlobal(span, type, nexpr, origsec)
+      # don't analyze expr itself since there is no reason for it
+      # nexpr = flow_analysis(expr, pc, ctx)
+      return SGlobal(span, type, expr, origsec)
     case File() | STryCatch():
       return map_tree(flow_analysis, node, pc, ctx)
     case _:
